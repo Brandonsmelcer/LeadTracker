@@ -1,9 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:provider/provider.dart';
 import 'package:lead_tracker/providers/app_provider.dart';
 import 'package:lead_tracker/models/models.dart';
-import 'package:lead_tracker/screens/auth_screen.dart';
 
 void main() {
   group('AppProvider', () {

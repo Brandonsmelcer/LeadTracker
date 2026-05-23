@@ -13,17 +13,25 @@ class TeamScreen extends StatefulWidget {
 
 class _TeamScreenState extends State<TeamScreen>
     with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+  TabController? _tabController;
+  bool _isMaster = false;
 
   @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final provider = context.read<AppProvider>();
+    final isMaster = provider.currentUser.role == UserRole.master;
+    if (_tabController == null || _isMaster != isMaster) {
+      _isMaster = isMaster;
+      _tabController?.dispose();
+      _tabController = TabController(
+          length: isMaster ? 3 : 2, vsync: this);
+    }
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _tabController?.dispose();
     super.dispose();
   }
 
@@ -31,6 +39,7 @@ class _TeamScreenState extends State<TeamScreen>
   Widget build(BuildContext context) {
     return Consumer<AppProvider>(
       builder: (context, provider, _) {
+        final isMaster = provider.currentUser.role == UserRole.master;
         return Column(
           children: [
             Container(
@@ -41,17 +50,18 @@ class _TeamScreenState extends State<TeamScreen>
                 labelColor: AppColors.accent,
                 unselectedLabelColor: AppColors.textSecondary,
                 tabs: [
-                  Tab(
-                    icon: const Icon(Icons.admin_panel_settings, size: 20),
-                    child: Text('Master (${provider.users.where((u) => u.role == UserRole.master).length})'),
-                  ),
+                  if (isMaster)
+                    Tab(
+                      icon: const Icon(Icons.admin_panel_settings, size: 20),
+                      child: const Text('Admin'),
+                    ),
                   Tab(
                     icon: const Icon(Icons.supervisor_account, size: 20),
                     child: Text('Managers (${provider.managers.length})'),
                   ),
                   Tab(
                     icon: const Icon(Icons.person, size: 20),
-                    child: Text('Associates (${provider.associates.length})'),
+                    child: Text('Team (${provider.associates.length})'),
                   ),
                 ],
               ),
@@ -60,7 +70,7 @@ class _TeamScreenState extends State<TeamScreen>
               child: TabBarView(
                 controller: _tabController,
                 children: [
-                  _MasterTab(provider: provider),
+                  if (isMaster) _MasterTab(provider: provider),
                   _ManagersTab(provider: provider),
                   _AssociatesTab(provider: provider),
                 ],
@@ -582,7 +592,10 @@ class _UserCard extends StatelessWidget {
             style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       ),
       title: Text(user.name),
-      subtitle: Text(subtitle ?? user.role.name.toUpperCase(),
+      subtitle: Text(
+          subtitle ?? (provider.currentUser.role == UserRole.master
+              ? user.role.name.toUpperCase()
+              : ''),
           style: const TextStyle(color: AppColors.gold, fontSize: 12)),
       trailing: user.role != UserRole.master
           ? IconButton(

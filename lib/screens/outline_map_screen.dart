@@ -487,24 +487,29 @@ class _OutlineMapPainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..strokeWidth = isSelected ? 2.5 : 0.8);
 
-      if (ptCount > 0 && filterState != null && county != null) {
+      if (ptCount > 0 && county != null) {
         final center = Offset(cx / ptCount, cy / ptCount);
-        _drawLabel(canvas, center, county, isSelected);
+        _drawLabel(canvas, center, county, isSelected, filterState != null);
       }
     }
   }
 
-  void _drawLabel(Canvas canvas, Offset center, County county, bool isSelected) {
-    final name = county.name.length > 8
-        ? '${county.name.substring(0, 7)}.'
-        : county.name;
+  void _drawLabel(Canvas canvas, Offset center, County county,
+      bool isSelected, bool isSingleState) {
+    final nameFontSize = isSingleState ? 7.0 : 4.5;
+    final countFontSize = isSingleState ? 8.0 : 5.5;
+    final countOffset = isSingleState ? 5.0 : 3.0;
+
+    final name = isSingleState
+        ? (county.name.length > 8 ? '${county.name.substring(0, 7)}.' : county.name)
+        : (county.name.length > 6 ? '${county.name.substring(0, 5)}.' : county.name);
 
     final namePainter = TextPainter(
       text: TextSpan(
         text: name,
         style: TextStyle(
           color: isSelected ? AppColors.gold : Colors.white,
-          fontSize: 7,
+          fontSize: nameFontSize,
           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
         ),
       ),
@@ -514,14 +519,14 @@ class _OutlineMapPainter extends CustomPainter {
 
     namePainter.paint(canvas,
         Offset(center.dx - namePainter.width / 2,
-            center.dy - namePainter.height / 2 - (county.leadCount > 0 ? 5 : 0)));
+            center.dy - namePainter.height / 2 - (county.leadCount > 0 ? countOffset : 0)));
 
     if (county.leadCount > 0) {
       final countPainter = TextPainter(
         text: TextSpan(
           text: '${county.leadCount}',
-          style: const TextStyle(
-              color: AppColors.gold, fontSize: 8, fontWeight: FontWeight.bold),
+          style: TextStyle(
+              color: AppColors.gold, fontSize: countFontSize, fontWeight: FontWeight.bold),
         ),
         textDirection: ui.TextDirection.ltr,
         textAlign: TextAlign.center,

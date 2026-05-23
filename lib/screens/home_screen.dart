@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
+import '../models/models.dart';
 import '../theme/app_theme.dart';
 import 'overview_screen.dart';
 import 'states_screen.dart';
@@ -247,7 +248,12 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 12),
             Text(provider.currentUser.name,
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            Text(provider.currentUser.role.name.toUpperCase(),
+            Text(
+                provider.currentUser.role == UserRole.master
+                    ? 'ADMINISTRATOR'
+                    : provider.currentUser.role == UserRole.manager
+                        ? 'TEAM MANAGER'
+                        : 'TEAM MEMBER',
                 style: const TextStyle(color: AppColors.gold, letterSpacing: 1)),
           ],
         ),
