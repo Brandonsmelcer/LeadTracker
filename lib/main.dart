@@ -31,10 +31,8 @@ const List<RegionState> regionStates = <RegionState>[
   ),
 ];
 
-const Map<String, RegionState> statesByCode = <String, RegionState>{
-  'WV': regionStates[0],
-  'TN': regionStates[1],
-  'KY': regionStates[2],
+final Map<String, RegionState> statesByCode = <String, RegionState>{
+  for (final state in regionStates) state.code: state,
 };
 
 const Map<String, String> stateCodeByFips = <String, String>{
@@ -234,7 +232,7 @@ class _LeadMapHomePageState extends State<LeadMapHomePage> {
               padding: const EdgeInsets.fromLTRB(18, 0, 18, 28),
               sliver: SliverList.separated(
                 itemCount: visibleCounties.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                separatorBuilder: (_, index) => const SizedBox(height: 10),
                 itemBuilder: (context, index) {
                   final county = visibleCounties[index];
                   return CountyLeadCard(
@@ -338,7 +336,7 @@ class HeaderPanel extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           DropdownButtonFormField<String>(
-            value: selectedState,
+            initialValue: selectedState,
             iconEnabledColor: Colors.white,
             dropdownColor: const Color(0xFF123C32),
             style: const TextStyle(
