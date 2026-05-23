@@ -4,7 +4,7 @@ import '../providers/app_provider.dart';
 import '../models/models.dart';
 import '../theme/app_theme.dart';
 import 'county_map_screen.dart';
-import 'geo_map_screen.dart';
+import 'outline_map_screen.dart';
 
 class StatesScreen extends StatelessWidget {
   const StatesScreen({super.key});
@@ -18,7 +18,7 @@ class StatesScreen extends StatelessWidget {
           children: [
             GestureDetector(
               onTap: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const GeoMapScreen())),
+                  MaterialPageRoute(builder: (_) => const OutlineMapScreen())),
               child: Container(
                 margin: const EdgeInsets.only(bottom: 16),
                 padding: const EdgeInsets.all(16),
@@ -81,7 +81,7 @@ class _StateCard extends StatelessWidget {
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
-            builder: (_) => GeoMapScreen(filterStateCode: state.code)),
+            builder: (_) => OutlineMapScreen(filterStateCode: state.code)),
       ),
       onLongPress: () => Navigator.push(
         context,

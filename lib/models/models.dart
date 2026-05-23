@@ -108,18 +108,43 @@ class LeadAssignment {
         timestamp = timestamp ?? DateTime.now();
 }
 
+class SaleRecord {
+  final String id;
+  final String associateId;
+  final String managerId;
+  final double amount;
+  final String description;
+  final DateTime timestamp;
+
+  SaleRecord({
+    String? id,
+    required this.associateId,
+    required this.managerId,
+    required this.amount,
+    this.description = '',
+    DateTime? timestamp,
+  })  : id = id ?? _uuid.v4(),
+        timestamp = timestamp ?? DateTime.now();
+}
+
 class PersonStats {
   final String userId;
   final String userName;
+  final UserRole role;
   int totalLeadsAssigned;
   int countiesWorked;
   final Map<String, int> leadsByState;
+  double totalSales;
+  int salesCount;
 
   PersonStats({
     required this.userId,
     required this.userName,
+    this.role = UserRole.associate,
     this.totalLeadsAssigned = 0,
     this.countiesWorked = 0,
     Map<String, int>? leadsByState,
+    this.totalSales = 0,
+    this.salesCount = 0,
   }) : leadsByState = leadsByState ?? {};
 }

@@ -8,7 +8,7 @@ import 'team_screen.dart';
 import 'comms_screen.dart';
 import 'stats_screen.dart';
 import 'csv_import_screen.dart';
-import 'geo_map_screen.dart';
+import 'outline_map_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -156,7 +156,7 @@ class _HomeScreenState extends State<HomeScreen> {
             onTap: () {
               Navigator.pop(context);
               Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const GeoMapScreen()));
+                  MaterialPageRoute(builder: (_) => const OutlineMapScreen()));
             },
           ),
           ListTile(

@@ -9,6 +9,7 @@ class AppProvider extends ChangeNotifier {
   final List<Note> _notes = [];
   final List<ChatChannel> _channels = [];
   final List<LeadAssignment> _assignments = [];
+  final List<SaleRecord> _sales = [];
   late AppUser _currentUser;
 
   AppProvider() {
@@ -44,6 +45,25 @@ class AppProvider extends ChangeNotifier {
       _users.where((u) => u.role == UserRole.manager).toList();
   List<AppUser> get associates =>
       _users.where((u) => u.role == UserRole.associate).toList();
+  List<SaleRecord> get sales => _sales;
+
+  double get totalRevenue => _sales.fold(0, (sum, s) => sum + s.amount);
+
+  double getTeamRevenue(String managerId) {
+    return _sales
+        .where((s) => s.managerId == managerId)
+        .fold(0, (sum, s) => sum + s.amount);
+  }
+
+  double getPersonRevenue(String userId) {
+    return _sales
+        .where((s) => s.associateId == userId)
+        .fold(0, (sum, s) => sum + s.amount);
+  }
+
+  List<SaleRecord> getPersonSales(String userId) {
+    return _sales.where((s) => s.associateId == userId).toList();
+  }
 
   List<AppUser> getTeamFor(String managerId) =>
       _users.where((u) => u.managerId == managerId).toList();
@@ -172,11 +192,24 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
+  // Sales
+  void recordSale(String associateId, String managerId, double amount,
+      {String description = ''}) {
+    _sales.add(SaleRecord(
+      associateId: associateId,
+      managerId: managerId,
+      amount: amount,
+      description: description,
+    ));
+    notifyListeners();
+  }
+
   // Stats
   List<PersonStats> getStats() {
     final stats = <String, PersonStats>{};
     for (final user in _users) {
-      stats[user.id] = PersonStats(userId: user.id, userName: user.name);
+      stats[user.id] = PersonStats(
+          userId: user.id, userName: user.name, role: user.role);
     }
     for (final state in _states) {
       for (final county in state.counties) {
@@ -189,8 +222,14 @@ class AppProvider extends ChangeNotifier {
         }
       }
     }
+    for (final sale in _sales) {
+      if (stats.containsKey(sale.associateId)) {
+        stats[sale.associateId]!.totalSales += sale.amount;
+        stats[sale.associateId]!.salesCount++;
+      }
+    }
     return stats.values.toList()
-      ..sort((a, b) => b.totalLeadsAssigned.compareTo(a.totalLeadsAssigned));
+      ..sort((a, b) => b.totalSales.compareTo(a.totalSales));
   }
 
   // Delegation
