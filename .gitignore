@@ -13,3 +13,9 @@
 .externalNativeBuild
 .cxx
 local.properties
+.dart_tool/
+.idea/
+build/
+.flutter-plugins-dependencies
+.metadata
+*.iml
