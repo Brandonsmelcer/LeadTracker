@@ -4,6 +4,7 @@ import '../providers/app_provider.dart';
 import '../models/models.dart';
 import '../theme/app_theme.dart';
 import 'county_map_screen.dart';
+import 'geo_map_screen.dart';
 
 class StatesScreen extends StatelessWidget {
   const StatesScreen({super.key});
@@ -15,6 +16,44 @@ class StatesScreen extends StatelessWidget {
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            GestureDetector(
+              onTap: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const GeoMapScreen())),
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [AppColors.accent, Color(0xFFFF6B6B)],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.public, color: Colors.white, size: 28),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('VIEW ALL LEADS MAP',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                  letterSpacing: 1)),
+                          Text('See every lead across TN, KY, WV',
+                              style: TextStyle(
+                                  color: Colors.white70, fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.arrow_forward_ios,
+                        color: Colors.white70, size: 16),
+                  ],
+                ),
+              ),
+            ),
             const Text('SELECT A STATE',
                 style: TextStyle(
                     color: AppColors.gold,
@@ -40,6 +79,11 @@ class _StateCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (_) => GeoMapScreen(filterStateCode: state.code)),
+      ),
+      onLongPress: () => Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => CountyMapScreen(stateData: state)),
       ),

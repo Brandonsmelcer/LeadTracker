@@ -8,6 +8,7 @@ import 'team_screen.dart';
 import 'comms_screen.dart';
 import 'stats_screen.dart';
 import 'csv_import_screen.dart';
+import 'geo_map_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -148,6 +149,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: TextStyle(color: AppColors.gold, fontSize: 13)),
               ],
             ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.public, color: AppColors.accent),
+            title: const Text('All Leads Map', style: TextStyle(color: Colors.white)),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const GeoMapScreen()));
+            },
           ),
           ListTile(
             leading: const Icon(Icons.upload_file, color: AppColors.gold),
