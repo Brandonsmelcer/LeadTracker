@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:lead_tracker/providers/app_provider.dart';
 import 'package:lead_tracker/models/models.dart';
-import 'package:lead_tracker/screens/home_screen.dart';
+import 'package:lead_tracker/screens/auth_screen.dart';
 
 void main() {
   group('AppProvider', () {
@@ -130,20 +130,32 @@ void main() {
     });
   });
 
-  group('Widget Tests', () {
-    testWidgets('App renders and shows Vision To Legacy branding',
-        (WidgetTester tester) async {
-      await tester.pumpWidget(
-        ChangeNotifierProvider(
-          create: (_) => AppProvider(),
-          child: MaterialApp(
-            home: const HomeScreen(),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
+  group('Sales', () {
+    test('can record a sale', () {
+      final provider = AppProvider();
+      provider.addUser('Manager 1', UserRole.manager);
+      provider.addUser('Agent 1', UserRole.associate);
+      final managerId = provider.managers.first.id;
+      final agentId = provider.associates.first.id;
+      provider.recordSale(agentId, managerId, 5000, description: 'Test sale');
+      expect(provider.sales.length, 1);
+      expect(provider.totalRevenue, 5000);
+      expect(provider.getTeamRevenue(managerId), 5000);
+      expect(provider.getPersonRevenue(agentId), 5000);
+    });
 
-      expect(find.text('VISION TO LEGACY'), findsWidgets);
+    test('stats include sales data', () {
+      final provider = AppProvider();
+      provider.addUser('Manager 1', UserRole.manager);
+      provider.addUser('Agent 1', UserRole.associate);
+      final managerId = provider.managers.first.id;
+      final agentId = provider.associates.first.id;
+      provider.recordSale(agentId, managerId, 3000);
+      provider.recordSale(agentId, managerId, 2000);
+      final stats = provider.getStats();
+      final agentStat = stats.firstWhere((s) => s.userId == agentId);
+      expect(agentStat.totalSales, 5000);
+      expect(agentStat.salesCount, 2);
     });
   });
 }

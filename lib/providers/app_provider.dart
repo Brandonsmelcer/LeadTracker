@@ -29,6 +29,14 @@ class AppProvider extends ChangeNotifier {
     ]);
   }
 
+  void setCurrentUser(AppUser user) {
+    if (!_users.any((u) => u.id == user.id)) {
+      _users.add(user);
+    }
+    _currentUser = user;
+    notifyListeners();
+  }
+
   // Getters
   List<StateData> get states => _states;
   List<AppUser> get users => _users;
