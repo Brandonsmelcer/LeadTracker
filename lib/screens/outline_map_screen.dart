@@ -152,13 +152,13 @@ class _OutlineMapScreenState extends State<OutlineMapScreen> {
         children: [
           _legendDot(AppColors.countyFill, '0'),
           const SizedBox(width: 10),
-          _legendDot(const Color(0xFF1B5E20), '1-9'),
+          _legendDot(const Color(0xFF00EC8B).withAlpha(100), '1-9'),
           const SizedBox(width: 10),
-          _legendDot(const Color(0xFF2E7D32), '10-49'),
+          _legendDot(const Color(0xFF00EC8B).withAlpha(150), '10-49'),
           const SizedBox(width: 10),
-          _legendDot(const Color(0xFF388E3C), '50-99'),
+          _legendDot(const Color(0xFF00EC8B).withAlpha(200), '50-99'),
           const SizedBox(width: 10),
-          _legendDot(const Color(0xFFFF8F00), '100+'),
+          _legendDot(const Color(0xFF00EC8B), '100+'),
           const SizedBox(width: 10),
           _legendDot(AppColors.accent, '500+'),
         ],
@@ -180,10 +180,7 @@ class _OutlineMapScreenState extends State<OutlineMapScreen> {
 
   void _handleTap(TapUpDetails details, BoxConstraints constraints,
       List<CountyBoundary> boundaries, AppProvider provider) {
-    final matrix = _transformCtrl.value;
-    final inv = Matrix4.tryInvert(matrix);
-    if (inv == null) return;
-    final local = MatrixUtils.transformPoint(inv, details.localPosition);
+    final local = details.localPosition;
 
     final w = constraints.maxWidth;
     final h = constraints.maxHeight;
@@ -565,10 +562,10 @@ class _OutlineMapPainter extends CustomPainter {
 
   Color _heatColor(int leads) {
     if (leads == 0) return AppColors.countyFill;
-    if (leads < 10) return const Color(0xFF1B5E20);
-    if (leads < 50) return const Color(0xFF2E7D32);
-    if (leads < 100) return const Color(0xFF388E3C);
-    if (leads < 500) return const Color(0xFFFF8F00);
+    if (leads < 10) return const Color(0xFF00EC8B).withAlpha(100);
+    if (leads < 50) return const Color(0xFF00EC8B).withAlpha(150);
+    if (leads < 100) return const Color(0xFF00EC8B).withAlpha(200);
+    if (leads < 500) return const Color(0xFF00EC8B);
     return AppColors.accent;
   }
 

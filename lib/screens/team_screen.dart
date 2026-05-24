@@ -520,6 +520,8 @@ class _AssociatesTab extends StatelessWidget {
 
   void _showAddAssociateDialog(BuildContext context) {
     final nameCtrl = TextEditingController();
+    final homeStateCtrl = TextEditingController();
+    final homeCountyCtrl = TextEditingController();
     String? selectedManagerId;
 
     showDialog(
@@ -528,29 +530,45 @@ class _AssociatesTab extends StatelessWidget {
         builder: (ctx, setDialogState) => AlertDialog(
           backgroundColor: AppColors.cardDark,
           title: const Text('Add Associate'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(labelText: 'Name'),
-                style: const TextStyle(color: Colors.white),
-              ),
-              if (provider.managers.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  initialValue: selectedManagerId,
-                  dropdownColor: AppColors.surface,
-                  decoration: const InputDecoration(labelText: 'Assign to Manager'),
-                  items: provider.managers
-                      .map((m) => DropdownMenuItem(
-                          value: m.id, child: Text(m.name)))
-                      .toList(),
-                  onChanged: (v) =>
-                      setDialogState(() => selectedManagerId = v),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(labelText: 'Name'),
+                  style: const TextStyle(color: Colors.white),
                 ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: homeStateCtrl,
+                  decoration: const InputDecoration(
+                      labelText: 'Home State', hintText: 'e.g. TN'),
+                  style: const TextStyle(color: Colors.white),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: homeCountyCtrl,
+                  decoration: const InputDecoration(
+                      labelText: 'Home County', hintText: 'e.g. Davidson'),
+                  style: const TextStyle(color: Colors.white),
+                ),
+                if (provider.managers.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedManagerId,
+                    dropdownColor: AppColors.surface,
+                    decoration: const InputDecoration(labelText: 'Assign to Manager'),
+                    items: provider.managers
+                        .map((m) => DropdownMenuItem(
+                            value: m.id, child: Text(m.name)))
+                        .toList(),
+                    onChanged: (v) =>
+                        setDialogState(() => selectedManagerId = v),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
           actions: [
             TextButton(
@@ -561,7 +579,11 @@ class _AssociatesTab extends StatelessWidget {
               onPressed: () {
                 if (nameCtrl.text.trim().isNotEmpty) {
                   provider.addUser(nameCtrl.text.trim(), UserRole.associate,
-                      managerId: selectedManagerId);
+                      managerId: selectedManagerId,
+                      homeState: homeStateCtrl.text.trim().isEmpty
+                          ? null : homeStateCtrl.text.trim(),
+                      homeCounty: homeCountyCtrl.text.trim().isEmpty
+                          ? null : homeCountyCtrl.text.trim());
                   Navigator.pop(ctx);
                 }
               },
@@ -585,6 +607,9 @@ class _UserCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = _parseColor(user.avatarColor ?? '#E94560');
+    final homeInfo = user.homeLocation;
+    final isMaster = provider.currentUser.role == UserRole.master;
+
     return ListTile(
       leading: CircleAvatar(
         backgroundColor: color,
@@ -592,15 +617,40 @@ class _UserCard extends StatelessWidget {
             style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       ),
       title: Text(user.name),
-      subtitle: Text(
-          subtitle ?? (provider.currentUser.role == UserRole.master
-              ? user.role.name.toUpperCase()
-              : ''),
-          style: const TextStyle(color: AppColors.gold, fontSize: 12)),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (subtitle != null)
+            Text(subtitle!, style: const TextStyle(color: AppColors.gold, fontSize: 12)),
+          if (homeInfo.isNotEmpty)
+            Row(
+              children: [
+                const Icon(Icons.home, size: 12, color: AppColors.textSecondary),
+                const SizedBox(width: 4),
+                Text(homeInfo,
+                    style: const TextStyle(
+                        color: AppColors.textSecondary, fontSize: 11)),
+              ],
+            ),
+        ],
+      ),
       trailing: user.role != UserRole.master
-          ? IconButton(
-              icon: const Icon(Icons.more_vert, color: AppColors.textSecondary),
-              onPressed: () => _showUserOptions(context),
+          ? Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (isMaster)
+                  IconButton(
+                    icon: const Icon(Icons.edit, color: AppColors.textSecondary, size: 20),
+                    onPressed: () => _showEditDialog(context),
+                    tooltip: 'Edit',
+                  ),
+                if (isMaster)
+                  IconButton(
+                    icon: const Icon(Icons.person_remove, color: AppColors.accent, size: 20),
+                    onPressed: () => _confirmRemove(context),
+                    tooltip: 'Remove',
+                  ),
+              ],
             )
           : null,
     );
@@ -611,24 +661,82 @@ class _UserCard extends StatelessWidget {
     return Color(int.parse('FF$hex', radix: 16));
   }
 
-  void _showUserOptions(BuildContext context) {
-    showModalBottomSheet(
+  void _confirmRemove(BuildContext context) {
+    showDialog(
       context: context,
-      backgroundColor: AppColors.cardDark,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.delete, color: AppColors.accent),
-              title: const Text('Remove User'),
-              onTap: () {
-                provider.removeUser(user.id);
-                Navigator.pop(ctx);
-              },
-            ),
-          ],
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.cardDark,
+        title: const Text('Remove User'),
+        content: Text('Remove ${user.name} from the team?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              provider.removeUser(user.id);
+              Navigator.pop(ctx);
+            },
+            style: FilledButton.styleFrom(backgroundColor: AppColors.accent),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditDialog(BuildContext context) {
+    final homeStateCtrl = TextEditingController(text: user.homeState ?? '');
+    final homeCountyCtrl = TextEditingController(text: user.homeCounty ?? '');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.cardDark,
+        title: Text('Edit ${user.name}'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: homeStateCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Home State',
+                  hintText: 'e.g. TN',
+                ),
+                style: const TextStyle(color: Colors.white),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: homeCountyCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Home County',
+                  hintText: 'e.g. Davidson',
+                ),
+                style: const TextStyle(color: Colors.white),
+              ),
+            ],
+          ),
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              provider.updateUser(user.id,
+                  homeState: homeStateCtrl.text.trim().isEmpty
+                      ? null : homeStateCtrl.text.trim(),
+                  homeCounty: homeCountyCtrl.text.trim().isEmpty
+                      ? null : homeCountyCtrl.text.trim());
+              Navigator.pop(ctx);
+            },
+            style: FilledButton.styleFrom(backgroundColor: AppColors.accent),
+            child: const Text('Save'),
+          ),
+        ],
       ),
     );
   }

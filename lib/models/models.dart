@@ -10,6 +10,8 @@ class AppUser {
   UserRole role;
   String? managerId;
   String? avatarColor;
+  String? homeState;
+  String? homeCounty;
 
   AppUser({
     String? id,
@@ -17,7 +19,17 @@ class AppUser {
     required this.role,
     this.managerId,
     this.avatarColor,
+    this.homeState,
+    this.homeCounty,
   }) : id = id ?? _uuid.v4();
+
+  String get homeLocation {
+    if (homeCounty != null && homeState != null) {
+      return '$homeCounty, $homeState';
+    }
+    if (homeState != null) return homeState!;
+    return '';
+  }
 
   int get totalLeads => 0;
 }
@@ -27,12 +39,14 @@ class County {
   final String stateCode;
   int leadCount;
   String? assignedTo;
+  String? sentToManager;
 
   County({
     required this.name,
     required this.stateCode,
     this.leadCount = 0,
     this.assignedTo,
+    this.sentToManager,
   });
 
   String get id => '${stateCode}_$name';

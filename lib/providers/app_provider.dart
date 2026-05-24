@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:csv/csv.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/models.dart';
 import '../data/county_data.dart';
 
@@ -11,6 +13,9 @@ class AppProvider extends ChangeNotifier {
   final List<LeadAssignment> _assignments = [];
   final List<SaleRecord> _sales = [];
   late AppUser _currentUser;
+  bool _firestoreEnabled = false;
+  FirebaseFirestore? _db;
+  final List<StreamSubscription> _subs = [];
 
   AppProvider() {
     _states = buildInitialStates();
@@ -22,11 +27,168 @@ class AppProvider extends ChangeNotifier {
     _users.add(_currentUser);
 
     _channels.addAll([
-      ChatChannel(name: 'general', icon: '💬'),
-      ChatChannel(name: 'leads', icon: '📊'),
-      ChatChannel(name: 'announcements', icon: '📢'),
-      ChatChannel(name: 'team-chat', icon: '👥'),
+      ChatChannel(id: 'general', name: 'general', icon: '💬'),
+      ChatChannel(id: 'leads', name: 'leads', icon: '📊'),
+      ChatChannel(id: 'announcements', name: 'announcements', icon: '📢'),
+      ChatChannel(id: 'team-chat', name: 'team-chat', icon: '👥'),
     ]);
+
+    _initFirestore();
+  }
+
+  void _initFirestore() {
+    try {
+      _db = FirebaseFirestore.instance;
+      _firestoreEnabled = true;
+      _listenToUsers();
+      _listenToCountyLeads();
+      _listenToSales();
+      for (final ch in _channels) {
+        _listenToMessages(ch.id);
+      }
+    } catch (_) {
+      _firestoreEnabled = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    for (final sub in _subs) {
+      sub.cancel();
+    }
+    super.dispose();
+  }
+
+  // Firestore listeners
+  void _listenToUsers() {
+    if (!_firestoreEnabled) return;
+    final sub = _db!.collection('users').snapshots().listen((snap) {
+      for (final doc in snap.docs) {
+        final d = doc.data();
+        final existing = _users.cast<AppUser?>().firstWhere(
+            (u) => u!.id == doc.id, orElse: () => null);
+        if (existing != null) {
+          existing.name = d['name'] ?? existing.name;
+          existing.role = UserRole.values.firstWhere(
+              (r) => r.name == d['role'], orElse: () => existing.role);
+          existing.managerId = d['managerId'];
+          existing.avatarColor = d['avatarColor'];
+          existing.homeState = d['homeState'];
+          existing.homeCounty = d['homeCounty'];
+        } else {
+          _users.add(AppUser(
+            id: doc.id,
+            name: d['name'] ?? '',
+            role: UserRole.values.firstWhere(
+                (r) => r.name == d['role'], orElse: () => UserRole.associate),
+            managerId: d['managerId'],
+            avatarColor: d['avatarColor'],
+            homeState: d['homeState'],
+            homeCounty: d['homeCounty'],
+          ));
+        }
+      }
+      notifyListeners();
+    });
+    _subs.add(sub);
+  }
+
+  void _listenToCountyLeads() {
+    if (!_firestoreEnabled) return;
+    final sub = _db!.collection('county_leads').snapshots().listen((snap) {
+      for (final doc in snap.docs) {
+        final d = doc.data();
+        final sc = d['stateCode'] as String? ?? '';
+        final cn = d['countyName'] as String? ?? '';
+        try {
+          final state = _states.firstWhere((s) => s.code == sc);
+          final county = state.counties.firstWhere(
+              (c) => c.name.toLowerCase() == cn.toLowerCase());
+          county.leadCount = d['leadCount'] ?? 0;
+          county.assignedTo = d['assignedTo'];
+          county.sentToManager = d['sentToManager'];
+        } catch (_) {}
+      }
+      notifyListeners();
+    });
+    _subs.add(sub);
+  }
+
+  void _listenToSales() {
+    if (!_firestoreEnabled) return;
+    final sub = _db!.collection('sales').snapshots().listen((snap) {
+      _sales.clear();
+      for (final doc in snap.docs) {
+        final d = doc.data();
+        _sales.add(SaleRecord(
+          id: doc.id,
+          associateId: d['associateId'] ?? '',
+          managerId: d['managerId'] ?? '',
+          amount: (d['amount'] ?? 0).toDouble(),
+          description: d['description'] ?? '',
+          timestamp: d['timestamp'] is Timestamp
+              ? (d['timestamp'] as Timestamp).toDate()
+              : DateTime.tryParse(d['timestamp']?.toString() ?? '') ?? DateTime.now(),
+        ));
+      }
+      notifyListeners();
+    });
+    _subs.add(sub);
+  }
+
+  void _listenToMessages(String channelId) {
+    if (!_firestoreEnabled) return;
+    final sub = _db!
+        .collection('channels')
+        .doc(channelId)
+        .collection('messages')
+        .orderBy('timestamp')
+        .snapshots()
+        .listen((snap) {
+      final channel = _channels.cast<ChatChannel?>().firstWhere(
+          (c) => c!.id == channelId, orElse: () => null);
+      if (channel == null) return;
+      channel.messages.clear();
+      for (final doc in snap.docs) {
+        final d = doc.data();
+        channel.messages.add(Note(
+          id: doc.id,
+          authorId: d['authorId'] ?? '',
+          authorName: d['authorName'] ?? '',
+          content: d['content'] ?? '',
+          timestamp: d['timestamp'] is Timestamp
+              ? (d['timestamp'] as Timestamp).toDate()
+              : DateTime.tryParse(d['timestamp']?.toString() ?? '') ?? DateTime.now(),
+          channelId: channelId,
+        ));
+      }
+      notifyListeners();
+    });
+    _subs.add(sub);
+  }
+
+  // Firestore save helpers
+  Future<void> _saveUser(AppUser user) async {
+    if (!_firestoreEnabled) return;
+    await _db!.collection('users').doc(user.id).set({
+      'name': user.name,
+      'role': user.role.name,
+      'managerId': user.managerId ?? '',
+      'avatarColor': user.avatarColor ?? '',
+      'homeState': user.homeState ?? '',
+      'homeCounty': user.homeCounty ?? '',
+    });
+  }
+
+  Future<void> _saveCountyLead(String stateCode, County county) async {
+    if (!_firestoreEnabled) return;
+    await _db!.collection('county_leads').doc('${stateCode}_${county.name}').set({
+      'stateCode': stateCode,
+      'countyName': county.name,
+      'leadCount': county.leadCount,
+      'assignedTo': county.assignedTo,
+      'sentToManager': county.sentToManager,
+    });
   }
 
   void setCurrentUser(AppUser user) {
@@ -44,10 +206,10 @@ class AppProvider extends ChangeNotifier {
   List<ChatChannel> get channels => _channels;
   AppUser get currentUser => _currentUser;
 
-  int get totalLeads => _states.fold(0, (sum, s) => sum + s.totalLeads);
-  int get totalCounties => _states.fold(0, (sum, s) => sum + s.counties.length);
+  int get totalLeads => _states.fold(0, (acc, s) => acc + s.totalLeads);
+  int get totalCounties => _states.fold(0, (acc, s) => acc + s.counties.length);
   int get coveredCounties =>
-      _states.fold(0, (sum, s) => sum + s.coveredCounties);
+      _states.fold(0, (acc, s) => acc + s.coveredCounties);
 
   List<AppUser> get managers =>
       _users.where((u) => u.role == UserRole.manager).toList();
@@ -55,18 +217,18 @@ class AppProvider extends ChangeNotifier {
       _users.where((u) => u.role == UserRole.associate).toList();
   List<SaleRecord> get sales => _sales;
 
-  double get totalRevenue => _sales.fold(0, (sum, s) => sum + s.amount);
+  double get totalRevenue => _sales.fold(0.0, (acc, s) => acc + s.amount);
 
   double getTeamRevenue(String managerId) {
     return _sales
         .where((s) => s.managerId == managerId)
-        .fold(0, (sum, s) => sum + s.amount);
+        .fold(0.0, (acc, s) => acc + s.amount);
   }
 
   double getPersonRevenue(String userId) {
     return _sales
         .where((s) => s.associateId == userId)
-        .fold(0, (sum, s) => sum + s.amount);
+        .fold(0.0, (acc, s) => acc + s.amount);
   }
 
   List<SaleRecord> getPersonSales(String userId) {
@@ -76,20 +238,54 @@ class AppProvider extends ChangeNotifier {
   List<AppUser> getTeamFor(String managerId) =>
       _users.where((u) => u.managerId == managerId).toList();
 
+  // Leads visible to a manager (only ones master has sent them)
+  List<County> getLeadsForManager(String managerId) {
+    final result = <County>[];
+    for (final state in _states) {
+      for (final county in state.counties) {
+        if (county.sentToManager == managerId) {
+          result.add(county);
+        }
+      }
+    }
+    return result;
+  }
+
   // User management
-  void addUser(String name, UserRole role, {String? managerId}) {
-    final colors = ['#E94560', '#4CAF50', '#2196F3', '#FF9800', '#9C27B0',
-                    '#00BCD4', '#FF5722', '#607D8B', '#795548', '#3F51B5'];
-    _users.add(AppUser(
+  void addUser(String name, UserRole role,
+      {String? managerId, String? homeState, String? homeCounty}) {
+    final colors = [
+      '#E94560', '#4CAF50', '#2196F3', '#FF9800', '#9C27B0',
+      '#00BCD4', '#FF5722', '#607D8B', '#795548', '#3F51B5'
+    ];
+    final user = AppUser(
       name: name,
       role: role,
       managerId: managerId,
       avatarColor: colors[_users.length % colors.length],
-    ));
+      homeState: homeState,
+      homeCounty: homeCounty,
+    );
+    _users.add(user);
+    _saveUser(user);
+    notifyListeners();
+  }
+
+  void updateUser(String userId,
+      {String? name, String? managerId, String? homeState, String? homeCounty}) {
+    final user = _users.firstWhere((u) => u.id == userId);
+    if (name != null) user.name = name;
+    if (managerId != null) user.managerId = managerId;
+    if (homeState != null) user.homeState = homeState;
+    if (homeCounty != null) user.homeCounty = homeCounty;
+    _saveUser(user);
     notifyListeners();
   }
 
   void removeUser(String userId) {
+    if (_firestoreEnabled) {
+      _db!.collection('users').doc(userId).delete();
+    }
     _users.removeWhere((u) => u.id == userId);
     for (final u in _users) {
       if (u.managerId == userId) u.managerId = null;
@@ -105,6 +301,7 @@ class AppProvider extends ChangeNotifier {
   void assignUserToManager(String userId, String managerId) {
     final user = _users.firstWhere((u) => u.id == userId);
     user.managerId = managerId;
+    _saveUser(user);
     notifyListeners();
   }
 
@@ -113,6 +310,7 @@ class AppProvider extends ChangeNotifier {
     final state = _states.firstWhere((s) => s.code == stateCode);
     final county = state.counties.firstWhere((c) => c.name == countyName);
     county.leadCount = count;
+    _saveCountyLead(stateCode, county);
     notifyListeners();
   }
 
@@ -128,6 +326,17 @@ class AppProvider extends ChangeNotifier {
         leadCount: county.leadCount,
       ));
     }
+    _saveCountyLead(stateCode, county);
+    notifyListeners();
+  }
+
+  // Send leads to a specific manager (master only)
+  void sendLeadsToManager(
+      String stateCode, String countyName, String managerId) {
+    final state = _states.firstWhere((s) => s.code == stateCode);
+    final county = state.counties.firstWhere((c) => c.name == countyName);
+    county.sentToManager = managerId;
+    _saveCountyLead(stateCode, county);
     notifyListeners();
   }
 
@@ -142,6 +351,19 @@ class AppProvider extends ChangeNotifier {
     if (channelId != null) {
       final channel = _channels.firstWhere((c) => c.id == channelId);
       channel.messages.add(note);
+      if (_firestoreEnabled) {
+        _db!
+            .collection('channels')
+            .doc(channelId)
+            .collection('messages')
+            .doc(note.id)
+            .set({
+          'authorId': note.authorId,
+          'authorName': note.authorName,
+          'content': note.content,
+          'timestamp': note.timestamp.toIso8601String(),
+        });
+      }
     } else {
       _notes.add(note);
     }
@@ -149,7 +371,9 @@ class AppProvider extends ChangeNotifier {
   }
 
   void addChannel(String name) {
-    _channels.add(ChatChannel(name: name, icon: '#'));
+    final channel = ChatChannel(name: name, icon: '#');
+    _channels.add(channel);
+    _listenToMessages(channel.id);
     notifyListeners();
   }
 
@@ -187,6 +411,7 @@ class AppProvider extends ChangeNotifier {
               if (user != null) county.assignedTo = user.id;
             }
           }
+          _saveCountyLead(stateCode, county);
           imported++;
         } catch (_) {
           skipped++;
@@ -203,12 +428,22 @@ class AppProvider extends ChangeNotifier {
   // Sales
   void recordSale(String associateId, String managerId, double amount,
       {String description = ''}) {
-    _sales.add(SaleRecord(
+    final sale = SaleRecord(
       associateId: associateId,
       managerId: managerId,
       amount: amount,
       description: description,
-    ));
+    );
+    _sales.add(sale);
+    if (_firestoreEnabled) {
+      _db!.collection('sales').doc(sale.id).set({
+        'associateId': sale.associateId,
+        'managerId': sale.managerId,
+        'amount': sale.amount,
+        'description': sale.description,
+        'timestamp': sale.timestamp.toIso8601String(),
+      });
+    }
     notifyListeners();
   }
 
@@ -253,6 +488,7 @@ class AppProvider extends ChangeNotifier {
       assignedToId: toUserId,
       leadCount: count,
     ));
+    _saveCountyLead(stateCode, county);
     notifyListeners();
   }
 }

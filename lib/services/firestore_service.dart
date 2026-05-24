@@ -13,6 +13,8 @@ class FirestoreService {
       'role': user.role.name,
       'managerId': user.managerId,
       'avatarColor': user.avatarColor,
+      'homeState': user.homeState,
+      'homeCounty': user.homeCounty,
     });
   }
 
