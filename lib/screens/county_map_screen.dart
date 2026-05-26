@@ -165,11 +165,7 @@ class _CountyTile extends StatelessWidget {
 
   Color _getHeatColor(int leads) {
     if (leads == 0) return AppColors.countyFill;
-    if (leads < 10) return const Color(0xFF1B5E20);
-    if (leads < 50) return const Color(0xFF2E7D32);
-    if (leads < 100) return const Color(0xFF388E3C);
-    if (leads < 500) return const Color(0xFFFF8F00);
-    return AppColors.accent;
+    return const Color(0xFF00CEC8);
   }
 
   @override

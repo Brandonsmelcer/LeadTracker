@@ -141,6 +141,109 @@ class SaleRecord {
         timestamp = timestamp ?? DateTime.now();
 }
 
+enum LeadStatus { fresh, contacted, qualified, converted, lost }
+
+class Lead {
+  final String id;
+  String firstName;
+  String lastName;
+  String address;
+  String city;
+  String state;
+  String zip;
+  String county;
+  String phone;
+  String email;
+  String? assignee;
+  String? source;
+  String? notes;
+  LeadStatus status;
+  final DateTime createdAt;
+
+  Lead({
+    String? id,
+    required this.firstName,
+    required this.lastName,
+    this.address = '',
+    this.city = '',
+    required this.state,
+    required this.zip,
+    this.county = '',
+    this.phone = '',
+    this.email = '',
+    this.assignee,
+    this.source,
+    this.notes,
+    this.status = LeadStatus.fresh,
+    DateTime? createdAt,
+  })  : id = id ?? _uuid.v4(),
+        createdAt = createdAt ?? DateTime.now();
+
+  String get fullName => '$firstName $lastName'.trim();
+
+  Map<String, dynamic> toMap() => {
+        'firstName': firstName,
+        'lastName': lastName,
+        'address': address,
+        'city': city,
+        'state': state,
+        'zip': zip,
+        'county': county,
+        'phone': phone,
+        'email': email,
+        'assignee': assignee ?? '',
+        'source': source ?? '',
+        'notes': notes ?? '',
+        'status': status.name,
+        'createdAt': createdAt.toIso8601String(),
+      };
+
+  factory Lead.fromMap(String id, Map<String, dynamic> m) => Lead(
+        id: id,
+        firstName: m['firstName'] ?? '',
+        lastName: m['lastName'] ?? '',
+        address: m['address'] ?? '',
+        city: m['city'] ?? '',
+        state: m['state'] ?? '',
+        zip: m['zip'] ?? '',
+        county: m['county'] ?? '',
+        phone: m['phone'] ?? '',
+        email: m['email'] ?? '',
+        assignee: m['assignee'],
+        source: m['source'],
+        notes: m['notes'],
+        status: LeadStatus.values.firstWhere(
+            (s) => s.name == m['status'],
+            orElse: () => LeadStatus.fresh),
+        createdAt: DateTime.tryParse(m['createdAt'] ?? '') ?? DateTime.now(),
+      );
+}
+
+class ImportResult {
+  final int total;
+  final int imported;
+  final int duplicates;
+  final int errors;
+  final List<String> errorMessages;
+  final Map<String, int> countyTotals;
+
+  const ImportResult({
+    this.total = 0,
+    this.imported = 0,
+    this.duplicates = 0,
+    this.errors = 0,
+    this.errorMessages = const [],
+    this.countyTotals = const {},
+  });
+}
+
+class ColumnMapping {
+  final Map<String, String> mapping;
+  const ColumnMapping(this.mapping);
+
+  String? get(String systemField) => mapping[systemField];
+}
+
 class PersonStats {
   final String userId;
   final String userName;

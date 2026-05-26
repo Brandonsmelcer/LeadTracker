@@ -12,6 +12,7 @@ class AppProvider extends ChangeNotifier {
   final List<ChatChannel> _channels = [];
   final List<LeadAssignment> _assignments = [];
   final List<SaleRecord> _sales = [];
+  final List<Lead> _leads = [];
   late AppUser _currentUser;
   bool _firestoreEnabled = false;
   FirebaseFirestore? _db;
@@ -34,6 +35,7 @@ class AppProvider extends ChangeNotifier {
     ]);
 
     _initFirestore();
+    _listenToLeads();
   }
 
   void _initFirestore() {
@@ -167,6 +169,31 @@ class AppProvider extends ChangeNotifier {
     _subs.add(sub);
   }
 
+  void _listenToLeads() {
+    if (!_firestoreEnabled) return;
+    final sub = _db!.collection('leads').snapshots().listen((snap) {
+      _leads.clear();
+      for (final doc in snap.docs) {
+        _leads.add(Lead.fromMap(doc.id, doc.data()));
+      }
+      _recalcCountyTotals();
+      notifyListeners();
+    });
+    _subs.add(sub);
+  }
+
+  void _recalcCountyTotals() {
+    for (final state in _states) {
+      for (final county in state.counties) {
+        county.leadCount = _leads
+            .where((l) =>
+                l.state == state.code &&
+                l.county.toLowerCase() == county.name.toLowerCase())
+            .length;
+      }
+    }
+  }
+
   // Firestore save helpers
   Future<void> _saveUser(AppUser user) async {
     if (!_firestoreEnabled) return;
@@ -237,6 +264,44 @@ class AppProvider extends ChangeNotifier {
 
   List<AppUser> getTeamFor(String managerId) =>
       _users.where((u) => u.managerId == managerId).toList();
+
+  List<Lead> get leads => _leads;
+
+  List<Lead> getLeadsForCounty(String stateCode, String countyName) =>
+      _leads.where((l) =>
+          l.state == stateCode &&
+          l.county.toLowerCase() == countyName.toLowerCase()).toList();
+
+  Future<void> addLeads(List<Lead> newLeads) async {
+    _leads.addAll(newLeads);
+    _recalcCountyTotals();
+    if (_firestoreEnabled) {
+      final batch = _db!.batch();
+      for (final lead in newLeads) {
+        batch.set(_db!.collection('leads').doc(lead.id), lead.toMap());
+      }
+      await batch.commit();
+    }
+    notifyListeners();
+  }
+
+  Future<void> clearAllLeads() async {
+    _leads.clear();
+    for (final state in _states) {
+      for (final county in state.counties) {
+        county.leadCount = 0;
+      }
+    }
+    if (_firestoreEnabled) {
+      final snap = await _db!.collection('leads').get();
+      final batch = _db!.batch();
+      for (final doc in snap.docs) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+    }
+    notifyListeners();
+  }
 
   // Leads visible to a manager (only ones master has sent them)
   List<County> getLeadsForManager(String managerId) {
