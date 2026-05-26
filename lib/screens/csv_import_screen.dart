@@ -131,7 +131,7 @@ class _CsvImportScreenState extends State<CsvImportScreen> {
         children: [
           _buildFormatGuide(),
           const SizedBox(height: 16),
-          const Text('PASTE RAW LEAD DATA',
+          const Text('PASTE YOUR LEADS',
               style: TextStyle(color: AppColors.gold, fontSize: 13,
                   letterSpacing: 2, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
@@ -185,18 +185,17 @@ class _CsvImportScreenState extends State<CsvImportScreen> {
           Row(children: [
             Icon(Icons.info_outline, color: AppColors.gold, size: 20),
             SizedBox(width: 8),
-            Text('SMART IMPORT', style: TextStyle(color: AppColors.gold,
+            Text('HOW IT WORKS', style: TextStyle(color: AppColors.gold,
                 fontSize: 13, letterSpacing: 2, fontWeight: FontWeight.bold)),
           ]),
           SizedBox(height: 8),
           Text(
-            'Paste your vendor CSV data directly. The system will:\n'
-            '• Auto-detect column names (FirstName, fname, first_name all work)\n'
-            '• Map columns to the right fields\n'
-            '• Look up county from ZIP code automatically\n'
-            '• Detect duplicates\n'
-            '• Validate all rows\n\n'
-            'County is NOT required — it\'s determined from ZIP code.',
+            'Copy and paste lead data straight from your vendor file. '
+            'Column names don\'t need to match exactly — the system '
+            'figures out which column is which.\n\n'
+            'You don\'t need a county column. County gets filled in '
+            'from the ZIP code.\n\n'
+            'Duplicates are skipped automatically.',
             style: TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.5),
           ),
         ],
@@ -243,7 +242,7 @@ class _CsvImportScreenState extends State<CsvImportScreen> {
           const Text('COLUMN MAPPING', style: TextStyle(color: AppColors.gold,
               fontSize: 13, letterSpacing: 2, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          const Text('Map your CSV columns to the system fields. Auto-detected mappings shown.',
+          const Text('Match your columns to the right fields. Most should be filled in already.',
               style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
           const SizedBox(height: 12),
           ...ImportService.allFields.map((field) => _buildMappingRow(field)),
@@ -427,8 +426,8 @@ class _CsvImportScreenState extends State<CsvImportScreen> {
           children: [
             CircularProgressIndicator(color: Color(0xFF00CEC8)),
             SizedBox(height: 16),
-            Text('Importing leads...', style: TextStyle(fontSize: 16)),
-            Text('Detecting counties from ZIP codes...',
+            Text('Importing...', style: TextStyle(fontSize: 16)),
+            Text('This should only take a moment.',
                 style: TextStyle(color: AppColors.textSecondary)),
           ],
         ),
