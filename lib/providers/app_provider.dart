@@ -320,7 +320,7 @@ class AppProvider extends ChangeNotifier {
   void addUser(String name, UserRole role,
       {String? managerId, String? homeState, String? homeCounty}) {
     final colors = [
-      '#E94560', '#4CAF50', '#2196F3', '#FF9800', '#9C27B0',
+      '#E94560', '#00CEC8', '#2196F3', '#FF9800', '#9C27B0',
       '#00BCD4', '#FF5722', '#607D8B', '#795548', '#3F51B5'
     ];
     final user = AppUser(

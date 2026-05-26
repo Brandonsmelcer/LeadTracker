@@ -160,7 +160,7 @@ class _OutlineMapScreenState extends State<OutlineMapScreen> {
           const SizedBox(width: 20),
           Container(width: 12, height: 12,
               decoration: BoxDecoration(
-                  color: const Color(0xFF00EC8B),
+                  color: const Color(0xFF00CEC8),
                   borderRadius: BorderRadius.circular(3))),
           const SizedBox(width: 4),
           const Text('Has leads', style: TextStyle(
@@ -557,7 +557,7 @@ class _OutlineMapPainter extends CustomPainter {
 
   Color _heatColor(int leads) {
     if (leads == 0) return AppColors.countyFill;
-    return const Color(0xFF00EC8B);
+    return const Color(0xFF00CEC8);
   }
 
   @override
