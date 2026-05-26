@@ -79,16 +79,16 @@ class _OutlineMapScreenState extends State<OutlineMapScreen> {
               _buildStatsBar(totalLeads, totalCounties, covered),
               _buildLegend(),
               Expanded(
-                child: InteractiveViewer(
-                  transformationController: _transformCtrl,
-                  minScale: 0.5,
-                  maxScale: 8.0,
-                  boundaryMargin: const EdgeInsets.all(200),
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      return GestureDetector(
-                        onTapUp: (details) => _handleTap(
-                            details, constraints, boundaries, provider),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    return GestureDetector(
+                      onTapUp: (details) => _handleTap(
+                          details, constraints, boundaries, provider),
+                      child: InteractiveViewer(
+                        transformationController: _transformCtrl,
+                        minScale: 0.5,
+                        maxScale: 8.0,
+                        boundaryMargin: const EdgeInsets.all(200),
                         child: CustomPaint(
                           size: Size(constraints.maxWidth, constraints.maxHeight),
                           painter: _OutlineMapPainter(
@@ -98,9 +98,9 @@ class _OutlineMapScreenState extends State<OutlineMapScreen> {
                             filterState: _filterState,
                           ),
                         ),
-                      );
-                    },
-                  ),
+                      ),
+                    );
+                  },
                 ),
               ),
               if (_selectedCountyKey != null)
@@ -150,37 +150,32 @@ class _OutlineMapScreenState extends State<OutlineMapScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          _legendDot(AppColors.countyFill, '0'),
-          const SizedBox(width: 10),
-          _legendDot(const Color(0xFF00EC8B).withAlpha(100), '1-9'),
-          const SizedBox(width: 10),
-          _legendDot(const Color(0xFF00EC8B).withAlpha(150), '10-49'),
-          const SizedBox(width: 10),
-          _legendDot(const Color(0xFF00EC8B).withAlpha(200), '50-99'),
-          const SizedBox(width: 10),
-          _legendDot(const Color(0xFF00EC8B), '100+'),
-          const SizedBox(width: 10),
-          _legendDot(AppColors.accent, '500+'),
+          Container(width: 12, height: 12,
+              decoration: BoxDecoration(
+                  color: AppColors.countyFill,
+                  borderRadius: BorderRadius.circular(3))),
+          const SizedBox(width: 4),
+          const Text('No leads', style: TextStyle(
+              fontSize: 11, color: AppColors.textSecondary)),
+          const SizedBox(width: 20),
+          Container(width: 12, height: 12,
+              decoration: BoxDecoration(
+                  color: const Color(0xFF00EC8B),
+                  borderRadius: BorderRadius.circular(3))),
+          const SizedBox(width: 4),
+          const Text('Has leads', style: TextStyle(
+              fontSize: 11, color: AppColors.textSecondary)),
         ],
       ),
     );
   }
 
-  Widget _legendDot(Color color, String label) {
-    return Row(
-      children: [
-        Container(width: 10, height: 10,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-        const SizedBox(width: 3),
-        Text(label, style: const TextStyle(
-            fontSize: 10, color: AppColors.textSecondary)),
-      ],
-    );
-  }
-
   void _handleTap(TapUpDetails details, BoxConstraints constraints,
       List<CountyBoundary> boundaries, AppProvider provider) {
-    final local = details.localPosition;
+    final matrix = _transformCtrl.value;
+    final inv = Matrix4.tryInvert(matrix);
+    if (inv == null) return;
+    final local = MatrixUtils.transformPoint(inv, details.localPosition);
 
     final w = constraints.maxWidth;
     final h = constraints.maxHeight;
@@ -523,7 +518,7 @@ class _OutlineMapPainter extends CustomPainter {
         text: TextSpan(
           text: '${county.leadCount}',
           style: TextStyle(
-              color: AppColors.gold, fontSize: countFontSize, fontWeight: FontWeight.bold),
+              color: Colors.white, fontSize: countFontSize, fontWeight: FontWeight.bold),
         ),
         textDirection: ui.TextDirection.ltr,
         textAlign: TextAlign.center,
@@ -562,11 +557,7 @@ class _OutlineMapPainter extends CustomPainter {
 
   Color _heatColor(int leads) {
     if (leads == 0) return AppColors.countyFill;
-    if (leads < 10) return const Color(0xFF00EC8B).withAlpha(100);
-    if (leads < 50) return const Color(0xFF00EC8B).withAlpha(150);
-    if (leads < 100) return const Color(0xFF00EC8B).withAlpha(200);
-    if (leads < 500) return const Color(0xFF00EC8B);
-    return AppColors.accent;
+    return const Color(0xFF00EC8B);
   }
 
   @override

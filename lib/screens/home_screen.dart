@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
 import '../models/models.dart';
 import '../theme/app_theme.dart';
+import '../widgets/vl_logo.dart';
 import 'overview_screen.dart';
 import 'states_screen.dart';
 import 'team_screen.dart';
@@ -42,14 +43,7 @@ class _HomeScreenState extends State<HomeScreen> {
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.gold, width: 2),
-              ),
-              child: const Icon(Icons.visibility, color: AppColors.gold, size: 20),
-            ),
+            const VLLogo(size: 32, color: Colors.white),
             const SizedBox(width: 10),
             const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -131,14 +125,7 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.gold, width: 2),
-                  ),
-                  child: const Icon(Icons.visibility, color: AppColors.gold, size: 32),
-                ),
+                const VLLogo(size: 48, color: Colors.white),
                 const SizedBox(height: 12),
                 const Text('VISION TO LEGACY',
                     style: TextStyle(
@@ -250,10 +237,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             Text(
                 provider.currentUser.role == UserRole.master
-                    ? 'ADMINISTRATOR'
+                    ? 'ADMIN'
                     : provider.currentUser.role == UserRole.manager
-                        ? 'TEAM MANAGER'
-                        : 'TEAM MEMBER',
+                        ? 'MANAGER'
+                        : 'ASSOCIATE',
                 style: const TextStyle(color: AppColors.gold, letterSpacing: 1)),
           ],
         ),

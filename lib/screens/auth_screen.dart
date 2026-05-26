@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../services/auth_service.dart';
 import '../models/models.dart';
 import '../theme/app_theme.dart';
+import '../widgets/vl_logo.dart';
 
 class AuthScreen extends StatefulWidget {
   final Function(AppUser) onAuthenticated;
@@ -58,6 +60,26 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
+  Future<void> _biometricLogin() async {
+    if (kIsWeb) return;
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    try {
+      final user = await _authService.biometricSignIn();
+      if (user != null && mounted) {
+        widget.onAuthenticated(user);
+      } else {
+        setState(() => _error = 'Sign in with email first, then use biometrics next time');
+      }
+    } catch (e) {
+      setState(() => _error = 'Biometric login unavailable');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -70,15 +92,7 @@ class _AuthScreenState extends State<AuthScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.gold, width: 3),
-                  ),
-                  child: const Icon(Icons.visibility,
-                      color: AppColors.gold, size: 48),
-                ),
+                const VLLogo(size: 100, color: Colors.white),
                 const SizedBox(height: 16),
                 const Text('VISION TO LEGACY',
                     style: TextStyle(
@@ -139,7 +153,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     items: UserRole.values
                         .map((r) => DropdownMenuItem(
                             value: r,
-                            child: Text(r.name[0].toUpperCase() + r.name.substring(1))))
+                            child: Text(_roleLabel(r))))
                         .toList(),
                     onChanged: (v) {
                       if (v != null) setState(() => _selectedRole = v);
@@ -186,6 +200,22 @@ class _AuthScreenState extends State<AuthScreen> {
                             style: const TextStyle(fontSize: 16)),
                   ),
                 ),
+                if (_isLogin && !kIsWeb) ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _isLoading ? null : _biometricLogin,
+                      icon: const Icon(Icons.fingerprint, color: AppColors.gold),
+                      label: const Text('Sign in with Biometrics',
+                          style: TextStyle(color: AppColors.gold)),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: AppColors.gold),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 16),
                 TextButton(
                   onPressed: () => setState(() {
@@ -199,29 +229,22 @@ class _AuthScreenState extends State<AuthScreen> {
                     style: const TextStyle(color: AppColors.gold),
                   ),
                 ),
-                const SizedBox(height: 16),
-                OutlinedButton(
-                  onPressed: () {
-                    final offlineUser = AppUser(
-                      name: 'Master Admin',
-                      role: UserRole.master,
-                      avatarColor: '#E94560',
-                    );
-                    widget.onAuthenticated(offlineUser);
-                  },
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppColors.countyBorder),
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 12, horizontal: 24),
-                  ),
-                  child: const Text('Continue Offline (Demo Mode)',
-                      style: TextStyle(color: AppColors.textSecondary)),
-                ),
               ],
             ),
           ),
         ),
       ),
     );
+  }
+
+  String _roleLabel(UserRole role) {
+    switch (role) {
+      case UserRole.master:
+        return 'Admin';
+      case UserRole.manager:
+        return 'Manager';
+      case UserRole.associate:
+        return 'Associate';
+    }
   }
 }

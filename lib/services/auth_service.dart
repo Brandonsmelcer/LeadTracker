@@ -1,10 +1,13 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:local_auth/local_auth.dart';
 import '../models/models.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final LocalAuthentication _localAuth = LocalAuthentication();
 
   User? get currentFirebaseUser => _auth.currentUser;
   Stream<User?> get authStateChanges => _auth.authStateChanges();
@@ -32,8 +35,10 @@ class AuthService {
       'name': user.name,
       'role': user.role.name,
       'email': email,
-      'managerId': user.managerId,
-      'avatarColor': user.avatarColor,
+      'managerId': user.managerId ?? '',
+      'avatarColor': user.avatarColor ?? '',
+      'homeState': '',
+      'homeCounty': '',
     });
 
     return user;
@@ -41,6 +46,42 @@ class AuthService {
 
   Future<void> signOut() async {
     await _auth.signOut();
+  }
+
+  Future<bool> canUseBiometrics() async {
+    if (kIsWeb) return false;
+    try {
+      final isAvailable = await _localAuth.canCheckBiometrics;
+      final isDeviceSupported = await _localAuth.isDeviceSupported();
+      return isAvailable && isDeviceSupported;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> authenticateWithBiometrics() async {
+    if (kIsWeb) return false;
+    try {
+      return await _localAuth.authenticate(
+        localizedReason: 'Sign in to Vision To Legacy',
+        options: const AuthenticationOptions(
+          stickyAuth: true,
+          biometricOnly: false,
+        ),
+      );
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<AppUser?> biometricSignIn() async {
+    final fbUser = _auth.currentUser;
+    if (fbUser == null) return null;
+
+    final authenticated = await authenticateWithBiometrics();
+    if (!authenticated) return null;
+
+    return _getAppUser(fbUser.uid);
   }
 
   Future<AppUser?> _getAppUser(String uid) async {
@@ -55,6 +96,8 @@ class AuthService {
           orElse: () => UserRole.associate),
       managerId: d['managerId'],
       avatarColor: d['avatarColor'],
+      homeState: d['homeState'],
+      homeCounty: d['homeCounty'],
     );
   }
 

@@ -51,9 +51,9 @@ class _TeamScreenState extends State<TeamScreen>
                 unselectedLabelColor: AppColors.textSecondary,
                 tabs: [
                   if (isMaster)
-                    Tab(
-                      icon: const Icon(Icons.admin_panel_settings, size: 20),
-                      child: const Text('Admin'),
+                    const Tab(
+                      icon: Icon(Icons.admin_panel_settings, size: 20),
+                      child: Text('Admin'),
                     ),
                   Tab(
                     icon: const Icon(Icons.supervisor_account, size: 20),
@@ -107,7 +107,7 @@ class _MasterTab extends StatelessWidget {
               const Icon(Icons.admin_panel_settings,
                   color: AppColors.gold, size: 48),
               const SizedBox(height: 12),
-              const Text('MASTER CONTROL',
+              const Text('ADMIN CONTROL',
                   style: TextStyle(
                       color: AppColors.gold,
                       fontSize: 16,
