@@ -11,10 +11,12 @@ import 'models/models.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
-    await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform);
-  } catch (_) {
-    // Firebase init may fail offline — app still works in demo mode
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform);
+    }
+  } catch (e) {
+    debugPrint('Firebase init skipped: $e');
   }
   runApp(
     ChangeNotifierProvider(
