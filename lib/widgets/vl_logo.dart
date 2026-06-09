@@ -2,70 +2,86 @@ import 'package:flutter/material.dart';
 
 class VLLogo extends StatelessWidget {
   final double size;
-  final Color color;
 
-  const VLLogo({super.key, this.size = 80, this.color = Colors.white});
+  const VLLogo({super.key, this.size = 80});
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: size,
       height: size,
-      child: CustomPaint(painter: _VLLogoPainter(color: color)),
+      child: Image.asset(
+        'assets/logo.png',
+        width: size,
+        height: size,
+        fit: BoxFit.contain,
+        errorBuilder: (_, _, _) => CustomPaint(
+          painter: _VLLogoPainter(),
+          size: Size(size, size),
+        ),
+      ),
     );
   }
 }
 
 class _VLLogoPainter extends CustomPainter {
-  final Color color;
-  _VLLogoPainter({required this.color});
+  static const _silver = Color(0xFFD0D0D8);
+  static const _silverLight = Color(0xFFE8E8ED);
+  static const _green = Color(0xFF00783C);
+  static const _greenLight = Color(0xFF00A050);
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-
     final w = size.width;
-    final h = size.height;
+    final m = w * 0.08;
+    final dw = w - 2 * m;
+    final dh = dw;
 
-    // Left vertical bar of V
-    final vBar = Path()
-      ..moveTo(w * 0.05, h * 0.02)
-      ..lineTo(w * 0.15, h * 0.02)
-      ..lineTo(w * 0.15, h * 0.72)
-      ..lineTo(w * 0.05, h * 0.72)
-      ..close();
-    canvas.drawPath(vBar, paint);
+    // Left vertical bar (silver)
+    canvas.drawPath(
+      Path()
+        ..moveTo(m + dw * 0.03, m)
+        ..lineTo(m + dw * 0.15, m)
+        ..lineTo(m + dw * 0.15, m + dh * 0.72)
+        ..lineTo(m + dw * 0.03, m + dh * 0.72)
+        ..close(),
+      Paint()..color = _silverLight,
+    );
 
-    // Upper diagonal stripe (V right stroke going down-right)
-    final diag1 = Path()
-      ..moveTo(w * 0.15, h * 0.02)
-      ..lineTo(w * 0.28, h * 0.02)
-      ..lineTo(w * 0.95, h * 0.55)
-      ..lineTo(w * 0.82, h * 0.55)
-      ..close();
-    canvas.drawPath(diag1, paint);
+    // Upper diagonal (silver)
+    canvas.drawPath(
+      Path()
+        ..moveTo(m + dw * 0.15, m)
+        ..lineTo(m + dw * 0.30, m)
+        ..lineTo(m + dw * 0.95, m + dh * 0.55)
+        ..lineTo(m + dw * 0.80, m + dh * 0.55)
+        ..close(),
+      Paint()..color = _silver,
+    );
 
-    // Lower diagonal stripe (L diagonal going down-right)
-    final diag2 = Path()
-      ..moveTo(w * 0.15, h * 0.38)
-      ..lineTo(w * 0.28, h * 0.38)
-      ..lineTo(w * 0.95, h * 0.88)
-      ..lineTo(w * 0.82, h * 0.88)
-      ..close();
-    canvas.drawPath(diag2, paint);
+    // Lower diagonal (green)
+    canvas.drawPath(
+      Path()
+        ..moveTo(m + dw * 0.15, m + dh * 0.35)
+        ..lineTo(m + dw * 0.30, m + dh * 0.35)
+        ..lineTo(m + dw * 0.95, m + dh * 0.88)
+        ..lineTo(m + dw * 0.80, m + dh * 0.88)
+        ..close(),
+      Paint()..color = _green,
+    );
 
-    // Bottom horizontal bar of L
-    final lBar = Path()
-      ..moveTo(w * 0.55, h * 0.88)
-      ..lineTo(w * 0.95, h * 0.88)
-      ..lineTo(w * 0.95, h * 0.98)
-      ..lineTo(w * 0.55, h * 0.98)
-      ..close();
-    canvas.drawPath(lBar, paint);
+    // Bottom bar (green)
+    canvas.drawPath(
+      Path()
+        ..moveTo(m + dw * 0.52, m + dh * 0.88)
+        ..lineTo(m + dw * 0.95, m + dh * 0.88)
+        ..lineTo(m + dw * 0.95, m + dh * 0.99)
+        ..lineTo(m + dw * 0.52, m + dh * 0.99)
+        ..close(),
+      Paint()..color = _greenLight,
+    );
   }
 
   @override
-  bool shouldRepaint(covariant _VLLogoPainter old) => old.color != color;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

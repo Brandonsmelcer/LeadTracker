@@ -43,7 +43,7 @@ class _HomeScreenState extends State<HomeScreen> {
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const VLLogo(size: 32, color: Colors.white),
+            const VLLogo(size: 32),
             const SizedBox(width: 10),
             const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -125,7 +125,7 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                const VLLogo(size: 48, color: Colors.white),
+                const VLLogo(size: 48),
                 const SizedBox(height: 12),
                 const Text('VISION TO LEGACY',
                     style: TextStyle(

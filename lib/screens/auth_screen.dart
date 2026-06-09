@@ -92,7 +92,7 @@ class _AuthScreenState extends State<AuthScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const VLLogo(size: 100, color: Colors.white),
+                const VLLogo(size: 100),
                 const SizedBox(height: 16),
                 const Text('VISION TO LEGACY',
                     style: TextStyle(
