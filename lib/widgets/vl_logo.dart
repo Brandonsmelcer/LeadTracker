@@ -11,7 +11,7 @@ class VLLogo extends StatelessWidget {
       width: size,
       height: size,
       child: Image.asset(
-        'assets/photos/V2L.jpg',
+        'assets/logo.png',
         width: size,
         height: size,
         fit: BoxFit.contain,

@@ -1,7 +1,7 @@
 name: lead_tracker
 description: "Vision To Legacy - Lead Tracker"
 publish_to: 'none'
-version: 1.0.0+2
+version: 1.0.1+3
 
 environment:  
   sdk: ^3.12.0
@@ -28,4 +28,4 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/photos/V2L.jpg
+    - assets/logo.png
