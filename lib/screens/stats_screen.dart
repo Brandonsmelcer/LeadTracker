@@ -311,7 +311,7 @@ class StatsScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  initialValue: selectedAssociateId,
+                  value: provider.associates.any((u) => u.id == selectedAssociateId) ? selectedAssociateId : null,
                   dropdownColor: AppColors.surface,
                   decoration: const InputDecoration(labelText: 'Associate'),
                   items: provider.associates
