@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "246295355739",
+    "project_id": "visiontolegacy-16cb4",
+    "storage_bucket": "visiontolegacy-16cb4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:246295355739:android:a9815b402f8482eab97a7e",
+        "android_client_info": {
+          "package_name": "com.visiontolegacy.lead_tracker"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCeoHto0QBMzPWzsaPezpt7u3bjsWZ-Et0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

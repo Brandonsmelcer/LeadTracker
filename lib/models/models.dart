@@ -10,6 +10,8 @@ class AppUser {
   UserRole role;
   String? managerId;
   String? avatarColor;
+  String? homeState;
+  String? homeCounty;
 
   AppUser({
     String? id,
@@ -17,7 +19,17 @@ class AppUser {
     required this.role,
     this.managerId,
     this.avatarColor,
+    this.homeState,
+    this.homeCounty,
   }) : id = id ?? _uuid.v4();
+
+  String get homeLocation {
+    if (homeCounty != null && homeState != null) {
+      return '$homeCounty, $homeState';
+    }
+    if (homeState != null) return homeState!;
+    return '';
+  }
 
   int get totalLeads => 0;
 }
@@ -27,12 +39,14 @@ class County {
   final String stateCode;
   int leadCount;
   String? assignedTo;
+  String? sentToManager;
 
   County({
     required this.name,
     required this.stateCode,
     this.leadCount = 0,
     this.assignedTo,
+    this.sentToManager,
   });
 
   String get id => '${stateCode}_$name';
@@ -108,18 +122,146 @@ class LeadAssignment {
         timestamp = timestamp ?? DateTime.now();
 }
 
+class SaleRecord {
+  final String id;
+  final String associateId;
+  final String managerId;
+  final double amount;
+  final String description;
+  final DateTime timestamp;
+
+  SaleRecord({
+    String? id,
+    required this.associateId,
+    required this.managerId,
+    required this.amount,
+    this.description = '',
+    DateTime? timestamp,
+  })  : id = id ?? _uuid.v4(),
+        timestamp = timestamp ?? DateTime.now();
+}
+
+enum LeadStatus { fresh, contacted, qualified, converted, lost }
+
+class Lead {
+  final String id;
+  String firstName;
+  String lastName;
+  String address;
+  String city;
+  String state;
+  String zip;
+  String county;
+  String phone;
+  String email;
+  String? assignee;
+  String? source;
+  String? notes;
+  LeadStatus status;
+  final DateTime createdAt;
+
+  Lead({
+    String? id,
+    required this.firstName,
+    required this.lastName,
+    this.address = '',
+    this.city = '',
+    required this.state,
+    required this.zip,
+    this.county = '',
+    this.phone = '',
+    this.email = '',
+    this.assignee,
+    this.source,
+    this.notes,
+    this.status = LeadStatus.fresh,
+    DateTime? createdAt,
+  })  : id = id ?? _uuid.v4(),
+        createdAt = createdAt ?? DateTime.now();
+
+  String get fullName => '$firstName $lastName'.trim();
+
+  Map<String, dynamic> toMap() => {
+        'firstName': firstName,
+        'lastName': lastName,
+        'address': address,
+        'city': city,
+        'state': state,
+        'zip': zip,
+        'county': county,
+        'phone': phone,
+        'email': email,
+        'assignee': assignee ?? '',
+        'source': source ?? '',
+        'notes': notes ?? '',
+        'status': status.name,
+        'createdAt': createdAt.toIso8601String(),
+      };
+
+  factory Lead.fromMap(String id, Map<String, dynamic> m) => Lead(
+        id: id,
+        firstName: m['firstName'] ?? '',
+        lastName: m['lastName'] ?? '',
+        address: m['address'] ?? '',
+        city: m['city'] ?? '',
+        state: m['state'] ?? '',
+        zip: m['zip'] ?? '',
+        county: m['county'] ?? '',
+        phone: m['phone'] ?? '',
+        email: m['email'] ?? '',
+        assignee: m['assignee'],
+        source: m['source'],
+        notes: m['notes'],
+        status: LeadStatus.values.firstWhere(
+            (s) => s.name == m['status'],
+            orElse: () => LeadStatus.fresh),
+        createdAt: DateTime.tryParse(m['createdAt'] ?? '') ?? DateTime.now(),
+      );
+}
+
+class ImportResult {
+  final int total;
+  final int imported;
+  final int duplicates;
+  final int errors;
+  final List<String> errorMessages;
+  final Map<String, int> countyTotals;
+
+  const ImportResult({
+    this.total = 0,
+    this.imported = 0,
+    this.duplicates = 0,
+    this.errors = 0,
+    this.errorMessages = const [],
+    this.countyTotals = const {},
+  });
+}
+
+class ColumnMapping {
+  final Map<String, String> mapping;
+  const ColumnMapping(this.mapping);
+
+  String? get(String systemField) => mapping[systemField];
+}
+
 class PersonStats {
   final String userId;
   final String userName;
+  final UserRole role;
   int totalLeadsAssigned;
   int countiesWorked;
   final Map<String, int> leadsByState;
+  double totalSales;
+  int salesCount;
 
   PersonStats({
     required this.userId,
     required this.userName,
+    this.role = UserRole.associate,
     this.totalLeadsAssigned = 0,
     this.countiesWorked = 0,
     Map<String, int>? leadsByState,
+    this.totalSales = 0,
+    this.salesCount = 0,
   }) : leadsByState = leadsByState ?? {};
 }

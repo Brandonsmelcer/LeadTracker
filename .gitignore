@@ -19,3 +19,7 @@ build/
 .flutter-plugins-dependencies
 .metadata
 *.iml
+
+# Signing keys
+android/key.properties
+*.jks

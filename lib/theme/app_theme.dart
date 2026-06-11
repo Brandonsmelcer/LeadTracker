@@ -10,8 +10,9 @@ class AppColors {
   static const Color cardDark = Color(0xFF1A1A2E);
   static const Color textPrimary = Colors.white;
   static const Color textSecondary = Color(0xFFB0B0C0);
-  static const Color success = Color(0xFF4CAF50);
+  static const Color success = Color(0xFF00CEC8);
   static const Color warning = Color(0xFFFFA726);
+  static const Color accentTeal = Color(0xFF00CEC8);
   static const Color countyFill = Color(0xFF1E3A5F);
   static const Color countyBorder = Color(0xFF3D5A80);
   static const Color countyHighlight = Color(0xFF2E5A88);
