@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
+import '../models/models.dart';
 import '../theme/app_theme.dart';
 
 class OverviewScreen extends StatelessWidget {
@@ -10,6 +11,10 @@ class OverviewScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AppProvider>(
       builder: (context, provider, _) {
+        if (!provider.canViewGlobalOverview) {
+          return _buildRestrictedView(provider);
+        }
+
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -26,6 +31,64 @@ class OverviewScreen extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildRestrictedView(AppProvider provider) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.lock_outline,
+                size: 64, color: AppColors.countyBorder),
+            const SizedBox(height: 16),
+            const Text('Global Overview — Admin Only',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            const Text(
+              'Full lead overview across all states and teams is restricted to Admins.',
+              style: TextStyle(color: AppColors.textSecondary),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            if (provider.currentUser.role == UserRole.manager)
+              _statCard('Your Team Leads', '${provider.getTeamLeads(provider.currentUser.id)}')
+            else if (provider.currentUser.role == UserRole.associate)
+              Builder(builder: (_) {
+                final myStats = provider.getStats().where(
+                    (s) => s.userId == provider.currentUser.id);
+                final leads = myStats.isNotEmpty
+                    ? myStats.first.totalLeadsAssigned
+                    : 0;
+                return _statCard('Your Assigned Leads', '$leads');
+              }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _statCard(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      decoration: BoxDecoration(
+        color: AppColors.cardDark,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.countyBorder.withAlpha(80)),
+      ),
+      child: Column(
+        children: [
+          Text(value,
+              style: const TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.accent)),
+          Text(label,
+              style: const TextStyle(color: AppColors.textSecondary)),
+        ],
+      ),
     );
   }
 
@@ -51,20 +114,23 @@ class OverviewScreen extends StatelessWidget {
                   letterSpacing: 3,
                   fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          Text('\$${_formatNumber(provider.totalLeads)}',
+          Text(_formatNumber(provider.totalLeads),
               style: const TextStyle(
                   fontSize: 48,
                   fontWeight: FontWeight.bold,
                   color: Colors.white)),
           const Text('TOTAL LEADS',
-              style: TextStyle(color: AppColors.textSecondary, letterSpacing: 2)),
+              style:
+                  TextStyle(color: AppColors.textSecondary, letterSpacing: 2)),
           const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               _statChip(Icons.map, '${provider.states.length}', 'States'),
-              _statChip(Icons.grid_view, '${provider.totalCounties}', 'Counties'),
-              _statChip(Icons.check_circle, '${provider.coveredCounties}', 'Covered'),
+              _statChip(
+                  Icons.grid_view, '${provider.totalCounties}', 'Counties'),
+              _statChip(Icons.check_circle, '${provider.coveredCounties}',
+                  'Covered'),
               _statChip(Icons.groups, '${provider.users.length}', 'Team'),
             ],
           ),
@@ -82,7 +148,8 @@ class OverviewScreen extends StatelessWidget {
             style: const TextStyle(
                 fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
         Text(label,
-            style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+            style:
+                const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
       ],
     );
   }
@@ -145,7 +212,8 @@ class OverviewScreen extends StatelessWidget {
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
                               color: AppColors.accent)),
-                      Text('${state.coveragePercent.toStringAsFixed(0)}% covered',
+                      Text(
+                          '${state.coveragePercent.toStringAsFixed(0)}% covered',
                           style: const TextStyle(
                               color: AppColors.textSecondary, fontSize: 12)),
                     ],
@@ -159,7 +227,8 @@ class OverviewScreen extends StatelessWidget {
 
   Widget _buildTopAgentsCard(AppProvider provider) {
     final stats = provider.getStats();
-    final topAgents = stats.where((s) => s.totalLeadsAssigned > 0).take(5).toList();
+    final topAgents =
+        stats.where((s) => s.totalLeadsAssigned > 0).take(5).toList();
 
     return Container(
       width: double.infinity,
@@ -205,7 +274,9 @@ class OverviewScreen extends StatelessWidget {
                       width: 24,
                       child: Text('#${i + 1}',
                           style: TextStyle(
-                              color: i == 0 ? AppColors.gold : AppColors.textSecondary,
+                              color: i == 0
+                                  ? AppColors.gold
+                                  : AppColors.textSecondary,
                               fontWeight: FontWeight.bold)),
                     ),
                     const SizedBox(width: 8),
@@ -215,7 +286,8 @@ class OverviewScreen extends StatelessWidget {
                     ),
                     Text('${stat.totalLeadsAssigned} leads',
                         style: const TextStyle(
-                            color: AppColors.accent, fontWeight: FontWeight.bold)),
+                            color: AppColors.accent,
+                            fontWeight: FontWeight.bold)),
                   ],
                 ),
               );
@@ -255,7 +327,7 @@ class OverviewScreen extends StatelessWidget {
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 16),
               child: Center(
-                child: Text('No notes yet — add one from the Notes section',
+                child: Text('No notes yet — add one from the Comms section',
                     style: TextStyle(color: AppColors.textSecondary)),
               ),
             )
@@ -269,7 +341,8 @@ class OverviewScreen extends StatelessWidget {
                         radius: 14,
                         backgroundColor: AppColors.accent,
                         child: Text(note.authorName[0],
-                            style: const TextStyle(fontSize: 12, color: Colors.white)),
+                            style: const TextStyle(
+                                fontSize: 12, color: Colors.white)),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
@@ -281,7 +354,8 @@ class OverviewScreen extends StatelessWidget {
                                     fontWeight: FontWeight.bold, fontSize: 13)),
                             Text(note.content,
                                 style: const TextStyle(
-                                    color: AppColors.textSecondary, fontSize: 13),
+                                    color: AppColors.textSecondary,
+                                    fontSize: 13),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis),
                           ],

@@ -2,12 +2,40 @@ import 'package:uuid/uuid.dart';
 
 const _uuid = Uuid();
 
-enum UserRole { master, manager, associate }
+enum UserRole { admin, manager, associate }
+
+UserRole? userRoleFromFirestore(String? value) {
+  switch (value?.toLowerCase()) {
+    case 'admin':
+      return UserRole.admin;
+    case 'manager':
+      return UserRole.manager;
+    case 'associate':
+      return UserRole.associate;
+    default:
+      return null;
+  }
+}
+
+extension UserRolePermissions on UserRole {
+  bool get canEditMap => this == UserRole.admin;
+  bool get canViewGlobalOverview => this == UserRole.admin;
+  bool get canViewMasterMap => this == UserRole.admin;
+  bool get canViewCombinedMap => this == UserRole.admin;
+  bool get canManageAllUsers => this == UserRole.admin;
+  bool get canAccessAdminPortal => this == UserRole.admin;
+  bool get canAccessTeamPortal =>
+      this == UserRole.admin || this == UserRole.manager;
+  bool get canAddManagers => this == UserRole.admin;
+  bool get canAddAssociates =>
+      this == UserRole.admin || this == UserRole.manager;
+}
 
 class AppUser {
   final String id;
   String name;
   UserRole role;
+  String? email;
   String? managerId;
   String? avatarColor;
 
@@ -15,6 +43,7 @@ class AppUser {
     String? id,
     required this.name,
     required this.role,
+    this.email,
     this.managerId,
     this.avatarColor,
   }) : id = id ?? _uuid.v4();

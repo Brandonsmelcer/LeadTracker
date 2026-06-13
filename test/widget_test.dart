@@ -4,13 +4,14 @@ import 'package:provider/provider.dart';
 import 'package:lead_tracker/providers/app_provider.dart';
 import 'package:lead_tracker/models/models.dart';
 import 'package:lead_tracker/screens/home_screen.dart';
+import 'package:lead_tracker/widgets/vl_logo.dart';
 
 void main() {
   group('AppProvider', () {
     late AppProvider provider;
 
     setUp(() {
-      provider = AppProvider();
+      provider = AppProvider.testing();
     });
 
     test('initializes with 3 states (TN, KY, WV)', () {
@@ -34,9 +35,11 @@ void main() {
       expect(wv.counties.length, 55);
     });
 
-    test('starts with master user', () {
-      expect(provider.currentUser.role, UserRole.master);
+    test('starts with admin user', () {
+      expect(provider.currentUser.role, UserRole.admin);
       expect(provider.users.length, 1);
+      expect(provider.canEditMap, isTrue);
+      expect(provider.canViewGlobalOverview, isTrue);
     });
 
     test('can add manager', () {
@@ -107,12 +110,10 @@ void main() {
       expect(agentStat.countiesWorked, 1);
     });
 
-    test('delegate leads works', () {
-      provider.addUser('Manager 1', UserRole.manager);
+    test('record sale assigns leads to associate', () {
       provider.addUser('Agent 1', UserRole.associate);
-      final managerId = provider.managers.first.id;
       final agentId = provider.associates.first.id;
-      provider.delegateLeads(managerId, agentId, 'TN', 'Davidson', 100);
+      provider.recordSale(agentId, 'TN', 'Davidson', 100);
       final tn = provider.states.firstWhere((s) => s.code == 'TN');
       final davidson = tn.counties.firstWhere((c) => c.name == 'Davidson');
       expect(davidson.assignedTo, agentId);
@@ -131,19 +132,28 @@ void main() {
   });
 
   group('Widget Tests', () {
-    testWidgets('App renders and shows Vision To Legacy branding',
+    testWidgets('App renders and shows logo branding',
         (WidgetTester tester) async {
       await tester.pumpWidget(
         ChangeNotifierProvider(
-          create: (_) => AppProvider(),
+          create: (_) => AppProvider.testing(),
           child: MaterialApp(
             home: const HomeScreen(),
           ),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.text('VISION TO LEGACY'), findsWidgets);
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is Image &&
+              widget.image is AssetImage &&
+              (widget.image as AssetImage).assetName == kAppLogoAsset,
+        ),
+        findsWidgets,
+      );
     });
   });
 }
