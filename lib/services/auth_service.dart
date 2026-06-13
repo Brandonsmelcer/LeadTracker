@@ -9,18 +9,20 @@ class AuthService extends ChangeNotifier {
   AuthService({
     this._auth,
     this._firestore,
-  });
+    bool? firebaseReady,
+  }) : _firebaseReady = firebaseReady ?? Firebase.apps.isNotEmpty;
 
   final FirebaseAuth? _auth;
   final FirestoreService? _firestore;
+  final bool _firebaseReady;
 
-  bool get firebaseReady => Firebase.apps.isNotEmpty;
+  bool get firebaseReady => _firebaseReady;
 
   FirebaseAuth? get _firebaseAuth =>
-      _auth ?? (firebaseReady ? FirebaseAuth.instance : null);
+      _auth ?? (_firebaseReady ? FirebaseAuth.instance : null);
 
   FirestoreService? get _firebaseFirestore =>
-      _firestore ?? (firebaseReady ? FirestoreService() : null);
+      _firestore ?? (_firebaseReady ? FirestoreService() : null);
 
   static const debugPassword = 'Test1234!';
 
