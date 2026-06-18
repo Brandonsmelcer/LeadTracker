@@ -1,4 +1,5 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'firebase_options.dart';
@@ -11,19 +12,8 @@ import 'screens/home_screen.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  if (Firebase.apps.isEmpty) {
-    try {
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
-    } on FirebaseException catch (e) {
-      if (e.code != 'duplicate-app') rethrow;
-    } catch (_) {
-      // Firebase not configured; debug login still works offline.
-    }
-  }
-
-  final authService = AuthService();
+  final firebaseReady = await _initializeFirebase();
+  final authService = AuthService(firebaseReady: firebaseReady);
 
   runApp(
     MultiProvider(
@@ -34,6 +24,29 @@ Future<void> main() async {
       child: const VisionToLegacyApp(),
     ),
   );
+}
+
+/// Completes before [AuthService] or any provider/widget tree is built.
+Future<bool> _initializeFirebase() async {
+  if (Firebase.apps.isNotEmpty) return true;
+
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    return true;
+  } on FirebaseException catch (e) {
+    if (e.code == 'duplicate-app') return true;
+    if (kDebugMode) {
+      debugPrint('Firebase.initializeApp failed: ${e.code} ${e.message}');
+    }
+    return false;
+  } catch (e) {
+    if (kDebugMode) {
+      debugPrint('Firebase.initializeApp skipped: $e');
+    }
+    return false;
+  }
 }
 
 class VisionToLegacyApp extends StatelessWidget {

@@ -1,5 +1,4 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import '../models/models.dart';
 import '../providers/app_provider.dart';
@@ -9,20 +8,18 @@ class AuthService extends ChangeNotifier {
   AuthService({
     this._auth,
     this._firestore,
-    bool? firebaseReady,
-  }) : _firebaseReady = firebaseReady ?? Firebase.apps.isNotEmpty;
+    required this.firebaseReady,
+  });
 
   final FirebaseAuth? _auth;
   final FirestoreService? _firestore;
-  final bool _firebaseReady;
-
-  bool get firebaseReady => _firebaseReady;
+  final bool firebaseReady;
 
   FirebaseAuth? get _firebaseAuth =>
-      _auth ?? (_firebaseReady ? FirebaseAuth.instance : null);
+      _auth ?? (firebaseReady ? FirebaseAuth.instance : null);
 
   FirestoreService? get _firebaseFirestore =>
-      _firestore ?? (_firebaseReady ? FirestoreService() : null);
+      _firestore ?? (firebaseReady ? FirestoreService() : null);
 
   static const debugPassword = 'Test1234!';
 
