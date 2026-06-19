@@ -39,7 +39,26 @@ void main() {
       expect(provider.currentUser.role, UserRole.admin);
       expect(provider.users.length, 1);
       expect(provider.canEditMap, isTrue);
+      expect(provider.canAccessMap, isTrue);
       expect(provider.canViewGlobalOverview, isTrue);
+    });
+
+    test('manager and associate cannot access map', () {
+      provider.applyLocalDebugSession(
+        role: UserRole.manager,
+        email: AuthEmails.manager,
+        uid: 'debug-manager',
+        name: 'Manager Tester',
+      );
+      expect(provider.canAccessMap, isFalse);
+
+      provider.applyLocalDebugSession(
+        role: UserRole.associate,
+        email: AuthEmails.associate,
+        uid: 'debug-associate',
+        name: 'Associate Tester',
+      );
+      expect(provider.canAccessMap, isFalse);
     });
 
     test('can add manager', () {
@@ -110,14 +129,85 @@ void main() {
       expect(agentStat.countiesWorked, 1);
     });
 
-    test('record sale assigns leads to associate', () {
+    test('record lead outcome marks sale with revenue', () async {
       provider.addUser('Agent 1', UserRole.associate);
       final agentId = provider.associates.first.id;
-      provider.recordSale(agentId, 'TN', 'Davidson', 100);
+      provider.updateCountyLeads('TN', 'Davidson', 5);
+      provider.assignCounty('TN', 'Davidson', agentId);
+
+      final error = await provider.recordLeadOutcome(
+        associateId: agentId,
+        stateCode: 'TN',
+        countyName: 'Davidson',
+        disposition: LeadStatus.sold,
+        saleAmount: 12500,
+        closingNotes: 'Closed same day',
+      );
+
+      expect(error, isNull);
       final tn = provider.states.firstWhere((s) => s.code == 'TN');
       final davidson = tn.counties.firstWhere((c) => c.name == 'Davidson');
       expect(davidson.assignedTo, agentId);
-      expect(davidson.leadCount, 100);
+      expect(davidson.leadCount, 4);
+      expect(provider.leads.length, 1);
+      expect(provider.leads.first.status, LeadStatus.sold);
+      expect(provider.leads.first.saleAmount, 12500);
+      expect(provider.totalRevenue, 12500);
+      expect(provider.totalSalesCount, 1);
+
+      final stats = provider.getStats();
+      final agentStat = stats.firstWhere((s) => s.userId == agentId);
+      expect(agentStat.totalSalesCount, 1);
+      expect(agentStat.totalRevenue, 12500);
+    });
+
+    test('undecided outcome keeps lead in active pipeline', () async {
+      provider.addUser('Agent 1', UserRole.associate);
+      final agentId = provider.associates.first.id;
+      provider.updateCountyLeads('TN', 'Davidson', 3);
+      provider.assignCounty('TN', 'Davidson', agentId);
+
+      final error = await provider.recordLeadOutcome(
+        associateId: agentId,
+        stateCode: 'TN',
+        countyName: 'Davidson',
+        disposition: LeadStatus.undecided,
+        closingNotes: 'Call back Friday',
+      );
+
+      expect(error, isNull);
+      final davidson = provider.states
+          .firstWhere((s) => s.code == 'TN')
+          .counties
+          .firstWhere((c) => c.name == 'Davidson');
+      expect(davidson.leadCount, 3);
+      expect(provider.leads.first.status, LeadStatus.undecided);
+
+      final agentStat =
+          provider.getStats().firstWhere((s) => s.userId == agentId);
+      expect(agentStat.undecidedCount, 1);
+    });
+
+    test('not interested outcome archives lead from pipeline', () async {
+      provider.addUser('Agent 1', UserRole.associate);
+      final agentId = provider.associates.first.id;
+      provider.updateCountyLeads('TN', 'Davidson', 2);
+      provider.assignCounty('TN', 'Davidson', agentId);
+
+      await provider.recordLeadOutcome(
+        associateId: agentId,
+        stateCode: 'TN',
+        countyName: 'Davidson',
+        disposition: LeadStatus.notInterested,
+        closingNotes: 'No budget',
+      );
+
+      final davidson = provider.states
+          .firstWhere((s) => s.code == 'TN')
+          .counties
+          .firstWhere((c) => c.name == 'Davidson');
+      expect(davidson.leadCount, 1);
+      expect(provider.leads.first.status, LeadStatus.notInterested);
     });
 
     test('removing user clears assignments', () {
@@ -154,6 +244,30 @@ void main() {
         ),
         findsWidgets,
       );
+      expect(find.text('Map'), findsWidgets);
+    });
+
+    testWidgets('manager nav hides map tab', (WidgetTester tester) async {
+      final provider = AppProvider();
+      provider.applyLocalDebugSession(
+        role: UserRole.manager,
+        email: AuthEmails.manager,
+        uid: 'debug-manager',
+        name: 'Manager Tester',
+      );
+
+      await tester.pumpWidget(
+        ChangeNotifierProvider.value(
+          value: provider,
+          child: const MaterialApp(home: HomeScreen()),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Map'), findsNothing);
+      expect(find.text('Team'), findsWidgets);
+      expect(find.text('Stats'), findsWidgets);
     });
   });
 }

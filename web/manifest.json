@@ -1,11 +1,11 @@
 {
-    "name": "lead_tracker",
-    "short_name": "lead_tracker",
+    "name": "Vision To Legacy Lead Tracker",
+    "short_name": "Lead Tracker",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#1A1A2E",
+    "theme_color": "#1A1A2E",
+    "description": "Internal sales and lead management for Vision To Legacy Group team members.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

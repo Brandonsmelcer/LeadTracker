@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:csv/csv.dart';
 import '../models/models.dart';
 import '../data/county_data.dart';
+import '../services/firestore_service.dart';
 
 class AppProvider extends ChangeNotifier {
   late List<StateData> _states;
@@ -9,6 +10,8 @@ class AppProvider extends ChangeNotifier {
   final List<Note> _notes = [];
   final List<ChatChannel> _channels = [];
   final List<LeadAssignment> _assignments = [];
+  final List<Lead> _leads = [];
+  FirestoreService? _firestore;
   AppUser? _currentUser;
   bool _isAuthenticated = false;
 
@@ -51,10 +54,22 @@ class AppProvider extends ChangeNotifier {
   List<Note> get notes => _notes;
   List<ChatChannel> get channels => _channels;
   List<LeadAssignment> get assignments => _assignments;
+  List<Lead> get leads => List.unmodifiable(_leads);
   AppUser get currentUser => _currentUser!;
   bool get isAuthenticated => _isAuthenticated;
 
   int get totalLeads => _states.fold(0, (sum, s) => sum + s.totalLeads);
+
+  double get totalRevenue => _leads
+      .where((l) => l.status == LeadStatus.sold)
+      .fold(0.0, (sum, l) => sum + (l.saleAmount ?? 0));
+
+  int get totalSalesCount =>
+      _leads.where((l) => l.status == LeadStatus.sold).length;
+
+  void setFirestoreService(FirestoreService? firestore) {
+    _firestore = firestore;
+  }
   int get totalCounties => _states.fold(0, (sum, s) => sum + s.counties.length);
   int get coveredCounties =>
       _states.fold(0, (sum, s) => sum + s.coveredCounties);
@@ -105,6 +120,8 @@ class AppProvider extends ChangeNotifier {
   // Role permissions (delegated to current user — must match Firestore role)
   bool get canEditMap =>
       _isAuthenticated && _currentUser!.role.canEditMap;
+  bool get canAccessMap =>
+      _isAuthenticated && _currentUser!.role.canAccessMap;
   bool get canViewGlobalOverview =>
       _isAuthenticated && _currentUser!.role.canViewGlobalOverview;
   bool get canViewMasterMap =>
@@ -234,6 +251,7 @@ class AppProvider extends ChangeNotifier {
   }) {
     _users.clear();
     _assignments.clear();
+    _leads.clear();
     _resetCountyLeads();
 
     if (role == UserRole.admin) {
@@ -289,7 +307,18 @@ class AppProvider extends ChangeNotifier {
     _isAuthenticated = false;
     _users.clear();
     _assignments.clear();
+    _leads.clear();
     _resetCountyLeads();
+    notifyListeners();
+  }
+
+  void applyLeadFromRemote(Lead lead) {
+    final index = _leads.indexWhere((l) => l.id == lead.id);
+    if (index >= 0) {
+      _leads[index] = lead;
+    } else {
+      _leads.add(lead);
+    }
     notifyListeners();
   }
 
@@ -441,24 +470,86 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void recordSale(
-    String associateId,
-    String stateCode,
-    String countyName,
-    int leadCount,
-  ) {
-    if (!canEditMap && _currentUser!.role != UserRole.manager) return;
+  /// Records a lead disposition outcome (sold, undecided, or not interested).
+  Future<String?> recordLeadOutcome({
+    required String associateId,
+    required String stateCode,
+    required String countyName,
+    required LeadStatus disposition,
+    double? saleAmount,
+    String? closingNotes,
+  }) async {
+    if (!canEditMap && _currentUser!.role != UserRole.manager) {
+      return 'You do not have permission to record outcomes.';
+    }
+    if (disposition == LeadStatus.sold &&
+        (saleAmount == null || saleAmount <= 0)) {
+      return 'Enter a valid sale amount for sold leads.';
+    }
+
     final state = _states.firstWhere((s) => s.code == stateCode);
     final county = state.counties.firstWhere((c) => c.name == countyName);
-    county.leadCount = leadCount;
+
+    if (county.leadCount <= 0 &&
+        disposition != LeadStatus.undecided &&
+        !_leads.any((l) =>
+            l.countyId == county.id &&
+            l.assignedToId == associateId &&
+            l.status.countsInActivePipeline)) {
+      return 'No active leads available in this county.';
+    }
+
+    final trimmedNotes =
+        closingNotes?.trim().isEmpty ?? true ? null : closingNotes!.trim();
+
+    final lead = Lead(
+      countyId: county.id,
+      stateCode: stateCode,
+      countyName: countyName,
+      assignedToId: associateId,
+      recordedById: _currentUser!.id,
+      status: disposition,
+      saleAmount: disposition == LeadStatus.sold ? saleAmount : null,
+      closingNotes: trimmedNotes,
+    );
+
     county.assignedTo = associateId;
+
+    switch (disposition) {
+      case LeadStatus.sold:
+      case LeadStatus.notInterested:
+        if (county.leadCount > 0) county.leadCount -= 1;
+        break;
+      case LeadStatus.undecided:
+      case LeadStatus.active:
+        break;
+    }
+
+    _leads.add(lead);
     _assignments.add(LeadAssignment(
       countyId: county.id,
       assignedById: _currentUser!.id,
       assignedToId: associateId,
-      leadCount: leadCount,
+      leadCount: 1,
+      disposition: disposition,
+      saleAmount: lead.saleAmount,
+      closingNotes: trimmedNotes,
     ));
+
+    try {
+      await _firestore?.saveLead(lead);
+      await _firestore?.upsertCountyLead(
+        stateCode: stateCode,
+        countyName: countyName,
+        leadCount: county.leadCount,
+        assignedToId: county.assignedTo,
+      );
+    } catch (_) {
+      // Local state is updated even if remote sync fails.
+    }
+
     notifyListeners();
+    return null;
   }
 
   void addNote(String content, {String? channelId}) {
@@ -545,8 +636,28 @@ class AppProvider extends ChangeNotifier {
         }
       }
     }
+    for (final lead in _leads) {
+      final s = stats[lead.assignedToId];
+      if (s == null) continue;
+      switch (lead.status) {
+        case LeadStatus.sold:
+          s.totalSalesCount++;
+          s.totalRevenue += lead.saleAmount ?? 0;
+          break;
+        case LeadStatus.undecided:
+          s.undecidedCount++;
+          break;
+        case LeadStatus.active:
+        case LeadStatus.notInterested:
+          break;
+      }
+    }
     return stats.values.toList()
-      ..sort((a, b) => b.totalLeadsAssigned.compareTo(a.totalLeadsAssigned));
+      ..sort((a, b) {
+        final revenueCompare = b.totalRevenue.compareTo(a.totalRevenue);
+        if (revenueCompare != 0) return revenueCompare;
+        return b.totalLeadsAssigned.compareTo(a.totalLeadsAssigned);
+      });
   }
 }
 

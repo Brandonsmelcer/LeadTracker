@@ -57,6 +57,46 @@ class FirestoreService {
   CollectionReference<Map<String, dynamic>>? get _counties =>
       _db?.collection('county_leads');
 
+  CollectionReference<Map<String, dynamic>>? get _leads =>
+      _db?.collection('leads');
+
+  Future<void> saveLead(Lead lead) async {
+    final leads = _leads;
+    if (leads == null) return;
+    await leads.doc(lead.id).set({
+      ...lead.toMap(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> upsertCountyLead({
+    required String stateCode,
+    required String countyName,
+    required int leadCount,
+    String? assignedToId,
+  }) async {
+    final counties = _counties;
+    if (counties == null) return;
+    final docId = '${stateCode}_$countyName'.replaceAll(' ', '_');
+    await counties.doc(docId).set({
+      'stateCode': stateCode,
+      'countyName': countyName,
+      'leadCount': leadCount,
+      'assignedToId': assignedToId,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  /// Loads individual lead disposition records into local provider state.
+  Future<void> loadLeads(void Function(Lead lead) applyLead) async {
+    final leads = _leads;
+    if (leads == null) return;
+    final snap = await leads.get();
+    for (final doc in snap.docs) {
+      applyLead(Lead.fromMap(doc.id, doc.data()));
+    }
+  }
+
   Future<UserProfile?> getUserProfile(String uid) async {
     final users = _users;
     if (users == null) return null;

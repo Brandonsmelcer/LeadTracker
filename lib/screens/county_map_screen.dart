@@ -38,6 +38,18 @@ class _CountyMapScreenState extends State<CountyMapScreen> {
   Widget build(BuildContext context) {
     return Consumer<AppProvider>(
       builder: (context, provider, _) {
+        if (!provider.canAccessMap) {
+          return Scaffold(
+            appBar: AppBar(title: Text(widget.stateData.name)),
+            body: const Center(
+              child: Text(
+                'Map access is restricted to administrators.',
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
+            ),
+          );
+        }
+
         final state = provider.states.firstWhere(
             (s) => s.code == widget.stateData.code);
         final layer = _geometry?.layerFor(state.code);

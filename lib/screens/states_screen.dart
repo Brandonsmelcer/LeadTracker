@@ -109,6 +109,15 @@ class _StatesScreenState extends State<StatesScreen>
   Widget build(BuildContext context) {
     return Consumer<AppProvider>(
       builder: (context, provider, _) {
+        if (!provider.canAccessMap) {
+          return const Center(
+            child: Text(
+              'Map access is restricted to administrators.',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          );
+        }
+
         _syncTabsForRole(provider);
         final modes = _modesForRole(provider);
         final layer = _layerForMode(_viewMode, provider);

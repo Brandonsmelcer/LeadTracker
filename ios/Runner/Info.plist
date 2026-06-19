@@ -70,5 +70,11 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>LeadTracker requires location access to map and manage leads in your area.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>LeadTracker requires camera access to allow you to take and upload photos for lead profiles.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>LeadTracker requires photo library access to allow you to select and attach existing photos to your leads.</string>
 </dict>
 </plist>

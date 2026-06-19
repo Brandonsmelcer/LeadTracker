@@ -134,8 +134,14 @@ class AuthService extends ChangeNotifier {
       managerId: profile.managerId,
     );
 
-    if (profile.role.canViewMasterMap && firebaseReady) {
-      await _firebaseFirestore?.loadCountyLeads(app.applyCountyLeadFromRemote);
+    if (firebaseReady) {
+      app.setFirestoreService(_firebaseFirestore);
+      if (profile.role.canViewMasterMap) {
+        await _firebaseFirestore?.loadCountyLeads(app.applyCountyLeadFromRemote);
+        await _firebaseFirestore?.loadLeads(app.applyLeadFromRemote);
+      }
+    } else {
+      app.setFirestoreService(null);
     }
   }
 

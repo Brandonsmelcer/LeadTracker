@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart' show Timestamp;
 import 'package:uuid/uuid.dart';
 
 const _uuid = Uuid();
@@ -19,6 +20,7 @@ UserRole? userRoleFromFirestore(String? value) {
 
 extension UserRolePermissions on UserRole {
   bool get canEditMap => this == UserRole.admin;
+  bool get canAccessMap => this == UserRole.admin;
   bool get canViewGlobalOverview => this == UserRole.admin;
   bool get canViewMasterMap => this == UserRole.admin;
   bool get canViewCombinedMap => this == UserRole.admin;
@@ -125,6 +127,9 @@ class LeadAssignment {
   final String assignedToId;
   final int leadCount;
   final DateTime timestamp;
+  final LeadStatus? disposition;
+  final double? saleAmount;
+  final String? closingNotes;
 
   LeadAssignment({
     String? id,
@@ -133,8 +138,113 @@ class LeadAssignment {
     required this.assignedToId,
     required this.leadCount,
     DateTime? timestamp,
+    this.disposition,
+    this.saleAmount,
+    this.closingNotes,
   })  : id = id ?? _uuid.v4(),
         timestamp = timestamp ?? DateTime.now();
+}
+
+enum LeadStatus { active, sold, undecided, notInterested }
+
+LeadStatus? leadStatusFromFirestore(String? value) {
+  switch (value) {
+    case 'active':
+      return LeadStatus.active;
+    case 'sold':
+      return LeadStatus.sold;
+    case 'undecided':
+      return LeadStatus.undecided;
+    case 'not_interested':
+      return LeadStatus.notInterested;
+    default:
+      return null;
+  }
+}
+
+extension LeadStatusSerialization on LeadStatus {
+  String get firestoreValue => switch (this) {
+        LeadStatus.active => 'active',
+        LeadStatus.sold => 'sold',
+        LeadStatus.undecided => 'undecided',
+        LeadStatus.notInterested => 'not_interested',
+      };
+
+  String get label => switch (this) {
+        LeadStatus.active => 'Active',
+        LeadStatus.sold => 'Sold',
+        LeadStatus.undecided => 'Undecided',
+        LeadStatus.notInterested => 'Not Interested',
+      };
+
+  bool get countsInActivePipeline =>
+      this == LeadStatus.active || this == LeadStatus.undecided;
+}
+
+class Lead {
+  final String id;
+  final String countyId;
+  final String stateCode;
+  final String countyName;
+  final String assignedToId;
+  final String recordedById;
+  LeadStatus status;
+  double? saleAmount;
+  String? closingNotes;
+  final DateTime createdAt;
+  DateTime updatedAt;
+
+  Lead({
+    String? id,
+    required this.countyId,
+    required this.stateCode,
+    required this.countyName,
+    required this.assignedToId,
+    required this.recordedById,
+    this.status = LeadStatus.active,
+    this.saleAmount,
+    this.closingNotes,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  })  : id = id ?? _uuid.v4(),
+        createdAt = createdAt ?? DateTime.now(),
+        updatedAt = updatedAt ?? DateTime.now();
+
+  factory Lead.fromMap(String id, Map<String, dynamic> data) {
+    return Lead(
+      id: id,
+      countyId: data['countyId'] as String? ?? '',
+      stateCode: data['stateCode'] as String? ?? '',
+      countyName: data['countyName'] as String? ?? '',
+      assignedToId: data['assignedToId'] as String? ?? '',
+      recordedById: data['recordedById'] as String? ?? '',
+      status: leadStatusFromFirestore(data['status'] as String?) ??
+          LeadStatus.active,
+      saleAmount: (data['saleAmount'] as num?)?.toDouble(),
+      closingNotes: data['closingNotes'] as String?,
+      createdAt: _timestampFromData(data['createdAt']),
+      updatedAt: _timestampFromData(data['updatedAt']),
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
+        'countyId': countyId,
+        'stateCode': stateCode,
+        'countyName': countyName,
+        'assignedToId': assignedToId,
+        'recordedById': recordedById,
+        'status': status.firestoreValue,
+        'saleAmount': saleAmount,
+        'closingNotes': closingNotes,
+        'createdAt': createdAt.toIso8601String(),
+        'updatedAt': updatedAt.toIso8601String(),
+      };
+}
+
+DateTime _timestampFromData(dynamic value) {
+  if (value is Timestamp) return value.toDate();
+  if (value is String) return DateTime.tryParse(value) ?? DateTime.now();
+  return DateTime.now();
 }
 
 class PersonStats {
@@ -142,6 +252,9 @@ class PersonStats {
   final String userName;
   int totalLeadsAssigned;
   int countiesWorked;
+  int totalSalesCount;
+  double totalRevenue;
+  int undecidedCount;
   final Map<String, int> leadsByState;
 
   PersonStats({
@@ -149,6 +262,9 @@ class PersonStats {
     required this.userName,
     this.totalLeadsAssigned = 0,
     this.countiesWorked = 0,
+    this.totalSalesCount = 0,
+    this.totalRevenue = 0,
+    this.undecidedCount = 0,
     Map<String, int>? leadsByState,
   }) : leadsByState = leadsByState ?? {};
 }

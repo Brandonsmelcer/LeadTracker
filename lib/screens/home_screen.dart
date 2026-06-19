@@ -40,14 +40,15 @@ class _HomeScreenState extends State<HomeScreen> {
               label: 'Overview',
             ),
           ),
-        const _NavItem(
-          screen: StatesScreen(),
-          destination: NavigationDestination(
-            icon: Icon(Icons.map_outlined, color: AppColors.textSecondary),
-            selectedIcon: Icon(Icons.map, color: AppColors.accent),
-            label: 'Map',
+        if (provider.canAccessMap)
+          const _NavItem(
+            screen: StatesScreen(),
+            destination: NavigationDestination(
+              icon: Icon(Icons.map_outlined, color: AppColors.textSecondary),
+              selectedIcon: Icon(Icons.map, color: AppColors.accent),
+              label: 'Map',
+            ),
           ),
-        ),
         if (provider.canAccessTeamPortal)
           const _NavItem(
             screen: TeamScreen(),
