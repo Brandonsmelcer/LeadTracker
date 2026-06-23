@@ -14,41 +14,7 @@ class UserManagementScreen extends StatefulWidget {
 }
 
 class _UserManagementScreenState extends State<UserManagementScreen> {
-  List<UserProfile>? _users;
-  String? _error;
-  bool _loading = true;
   final Set<String> _updating = {};
-
-  @override
-  void initState() {
-    super.initState();
-    _loadUsers();
-  }
-
-  Future<void> _loadUsers() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-
-    final app = context.read<AppProvider>();
-    final auth = context.read<AuthService>();
-
-    try {
-      final users = await auth.fetchAllUsers(app.currentUser.role);
-      if (!mounted) return;
-      setState(() {
-        _users = users;
-        _loading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = e.toString();
-        _loading = false;
-      });
-    }
-  }
 
   Future<void> _changeRole(UserProfile user, UserRole newRole) async {
     if (user.role == newRole) return;
@@ -75,21 +41,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         role: newRole,
       );
       if (!mounted) return;
-      setState(() {
-        _users = _users
-            ?.map((u) => u.uid == user.uid
-                ? UserProfile(
-                    uid: u.uid,
-                    email: u.email,
-                    name: u.name,
-                    role: newRole,
-                    managerId: u.managerId,
-                    approved: u.approved,
-                  )
-                : u)
-            .toList();
-        _updating.remove(user.uid);
-      });
+      setState(() => _updating.remove(user.uid));
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Updated ${user.email} to ${newRole.name}.'),
@@ -124,166 +76,181 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           );
         }
 
+        final auth = context.read<AuthService>();
+
         return Scaffold(
           appBar: AppBar(
             title: const Text('User Management'),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.refresh),
-                tooltip: 'Refresh',
-                onPressed: _loading ? null : _loadUsers,
-              ),
-            ],
           ),
-          body: _buildBody(app),
+          body: StreamBuilder<List<UserProfile>>(
+            stream: auth.watchAllUsers(app.currentUser.role),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting &&
+                  !snapshot.hasData) {
+                return const Center(
+                  child: CircularProgressIndicator(color: AppColors.accent),
+                );
+              }
+
+              if (snapshot.hasError) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.cloud_off,
+                            size: 48, color: AppColors.textSecondary),
+                        const SizedBox(height: 12),
+                        Text(
+                          snapshot.error.toString(),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              final users = snapshot.data ?? [];
+              if (users.isEmpty) {
+                return const Center(
+                  child: Text(
+                    'No users found in Firestore.',
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
+                );
+              }
+
+              return ListView.separated(
+                padding: const EdgeInsets.all(16),
+                itemCount: users.length + 1,
+                separatorBuilder: (_, _) => const SizedBox(height: 8),
+                itemBuilder: (context, index) {
+                  if (index == 0) {
+                    return Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.secondary,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                            color: AppColors.countyBorder.withAlpha(80)),
+                      ),
+                      child: const Text(
+                        'Manage roles for all registered users. Changes sync live from Firestore.',
+                        style: TextStyle(
+                            color: AppColors.textSecondary, fontSize: 13),
+                      ),
+                    );
+                  }
+
+                  final user = users[index - 1];
+                  return _UserRoleTile(
+                    user: user,
+                    app: app,
+                    isUpdating: _updating.contains(user.uid),
+                    onRoleChanged: (role) => _changeRole(user, role),
+                  );
+                },
+              );
+            },
+          ),
         );
       },
     );
   }
+}
 
-  Widget _buildBody(AppProvider app) {
-    if (_loading) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppColors.accent),
-      );
-    }
+class _UserRoleTile extends StatelessWidget {
+  final UserProfile user;
+  final AppProvider app;
+  final bool isUpdating;
+  final ValueChanged<UserRole> onRoleChanged;
 
-    if (_error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.cloud_off, size: 48, color: AppColors.textSecondary),
-              const SizedBox(height: 12),
-              Text(
-                _error!,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.textSecondary),
-              ),
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: _loadUsers,
-                style: FilledButton.styleFrom(backgroundColor: AppColors.accent),
-                child: const Text('Retry'),
-              ),
-            ],
+  const _UserRoleTile({
+    required this.user,
+    required this.app,
+    required this.isUpdating,
+    required this.onRoleChanged,
+  });
+
+  String get _roleStatusLabel {
+    if (!user.approved) return '${user.role.name} • pending approval';
+    return user.role.name;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isSelf = user.uid == app.currentUser.id;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.cardDark,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isSelf
+              ? AppColors.gold.withAlpha(100)
+              : AppColors.countyBorder.withAlpha(80),
+        ),
+      ),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: AppColors.surface,
+          child: Text(
+            user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
+            style: const TextStyle(
+              color: AppColors.gold,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
-      );
-    }
-
-    final users = _users ?? [];
-    if (users.isEmpty) {
-      return const Center(
-        child: Text(
-          'No users found in Firestore.',
-          style: TextStyle(color: AppColors.textSecondary),
+        title: Text(
+          user.email,
+          style: const TextStyle(fontWeight: FontWeight.w600),
         ),
-      );
-    }
-
-    return RefreshIndicator(
-      color: AppColors.accent,
-      onRefresh: _loadUsers,
-      child: ListView.separated(
-        padding: const EdgeInsets.all(16),
-        itemCount: users.length + 1,
-        separatorBuilder: (_, _) => const SizedBox(height: 8),
-        itemBuilder: (context, index) {
-          if (index == 0) {
-            return Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.secondary,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.countyBorder.withAlpha(80)),
-              ),
-              child: const Text(
-                'Manage roles for all registered users. Changes are saved to Firestore immediately.',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
-              ),
-            );
-          }
-
-          final user = users[index - 1];
-          final isSelf = user.uid == app.currentUser.id;
-          final isUpdating = _updating.contains(user.uid);
-
-          return Container(
-            decoration: BoxDecoration(
-              color: AppColors.cardDark,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: isSelf
-                    ? AppColors.gold.withAlpha(100)
-                    : AppColors.countyBorder.withAlpha(80),
-              ),
-            ),
-            child: ListTile(
-              leading: CircleAvatar(
-                backgroundColor: AppColors.surface,
-                child: Text(
-                  user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
-                  style: const TextStyle(
-                    color: AppColors.gold,
-                    fontWeight: FontWeight.bold,
+        subtitle: Text(
+          '${user.name}${isSelf ? ' • You' : ''} • Role: $_roleStatusLabel',
+          style: const TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 12,
+          ),
+        ),
+        trailing: isUpdating
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.accent,
+                ),
+              )
+            : SizedBox(
+                width: 140,
+                child: DropdownButton<UserRole>(
+                  isExpanded: true,
+                  value: user.role,
+                  dropdownColor: AppColors.surface,
+                  underline: Container(
+                    height: 1,
+                    color: AppColors.countyBorder.withAlpha(120),
                   ),
-                ),
-              ),
-              title: Text(
-                user.email,
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-              subtitle: Text(
-                '${user.name}${isSelf ? ' • You' : ''}${user.approved ? '' : ' • Pending approval'}',
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 12,
-                ),
-              ),
-              trailing: isUpdating
-                  ? const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: AppColors.accent,
-                      ),
-                    )
-                  : SizedBox(
-                      width: 140,
-                      child: DropdownButtonFormField<UserRole>(
-                        initialValue: user.role,
-                        dropdownColor: AppColors.surface,
-                        decoration: const InputDecoration(
-                          isDense: true,
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
+                  items: UserRole.values
+                      .map(
+                        (role) => DropdownMenuItem(
+                          value: role,
+                          child: Text(
+                            role.name,
+                            style: const TextStyle(fontSize: 13),
                           ),
-                          border: OutlineInputBorder(),
                         ),
-                        items: UserRole.values
-                            .map(
-                              (role) => DropdownMenuItem(
-                                value: role,
-                                child: Text(
-                                  role.name,
-                                  style: const TextStyle(fontSize: 13),
-                                ),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (role) {
-                          if (role != null) _changeRole(user, role);
-                        },
-                      ),
-                    ),
-            ),
-          );
-        },
+                      )
+                      .toList(),
+                  onChanged: (role) {
+                    if (role != null) onRoleChanged(role);
+                  },
+                ),
+              ),
       ),
     );
   }

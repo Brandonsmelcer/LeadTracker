@@ -38,6 +38,29 @@ class CountyMapLayer {
     required this.yOffset,
     required this.counties,
   });
+
+  /// Precise SVG path hit-test: only [Path.contains] matches (not bounds),
+  /// preferring the smallest county when paths overlap at borders.
+  CountyPathShape? hitTestAt(
+    Offset point, {
+    required bool Function(CountyPathShape shape) include,
+  }) {
+    CountyPathShape? best;
+    var smallestArea = double.infinity;
+
+    for (final shape in counties) {
+      if (!include(shape)) continue;
+      if (!shape.path.contains(point)) continue;
+
+      final area = shape.bounds.width * shape.bounds.height;
+      if (area < smallestArea) {
+        smallestArea = area;
+        best = shape;
+      }
+    }
+
+    return best;
+  }
 }
 
 class CountyMapGeometry {

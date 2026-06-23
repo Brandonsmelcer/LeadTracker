@@ -212,6 +212,18 @@ class AuthService extends ChangeNotifier {
     return firestore.fetchAllUsers();
   }
 
+  Stream<List<UserProfile>> watchAllUsers(UserRole callerRole) {
+    if (callerRole != UserRole.admin) {
+      return Stream.error(StateError('Only administrators can manage users.'));
+    }
+    final firestore = _firebaseFirestore;
+    if (!firebaseReady || firestore == null) {
+      return Stream.error(
+          StateError('Firebase is not available for user management.'));
+    }
+    return firestore.watchAllUsers();
+  }
+
   Future<void> updateUserRole({
     required UserRole callerRole,
     required String uid,
@@ -239,5 +251,6 @@ class AuthService extends ChangeNotifier {
         UserRole.admin => 'Admin Tester',
         UserRole.manager => 'Manager Tester',
         UserRole.associate => 'Associate Tester',
+        UserRole.pending => 'Pending Tester',
       };
 }

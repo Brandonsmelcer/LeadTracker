@@ -60,12 +60,13 @@ class AppProvider extends ChangeNotifier {
 
   int get totalLeads => _states.fold(0, (sum, s) => sum + s.totalLeads);
 
-  double get totalRevenue => _leads
-      .where((l) => l.status == LeadStatus.sold)
-      .fold(0.0, (sum, l) => sum + (l.saleAmount ?? 0));
+  double get totalRevenue => _assignments
+      .where((a) => a.disposition == LeadStatus.sold && a.saleAmount != null)
+      .fold(0.0, (sum, a) => sum + a.saleAmount!);
 
-  int get totalSalesCount =>
-      _leads.where((l) => l.status == LeadStatus.sold).length;
+  int get totalSalesCount => _assignments
+      .where((a) => a.disposition == LeadStatus.sold)
+      .length;
 
   void setFirestoreService(FirestoreService? firestore) {
     _firestore = firestore;
@@ -107,6 +108,8 @@ class AppProvider extends ChangeNotifier {
         };
       case UserRole.associate:
         return {_currentUser!.id};
+      case UserRole.pending:
+        return {};
     }
   }
 
@@ -143,6 +146,7 @@ class AppProvider extends ChangeNotifier {
         UserRole.admin => 'Admin Master Map',
         UserRole.manager => 'Manager Team Map',
         UserRole.associate => 'My Target Map',
+        UserRole.pending => 'Map',
         null => 'Map',
       };
 
@@ -154,7 +158,10 @@ class AppProvider extends ChangeNotifier {
     if (_currentUser!.role == UserRole.manager) {
       return getTeamFor(_currentUser!.id);
     }
-    return associates.where((u) => u.id == _currentUser!.id).toList();
+    if (_currentUser!.role == UserRole.associate) {
+      return associates.where((u) => u.id == _currentUser!.id).toList();
+    }
+    return [];
   }
 
   int getTeamLeads(String managerId) {
@@ -183,6 +190,8 @@ class AppProvider extends ChangeNotifier {
         return _visibleAssigneeIds.contains(county.assignedTo)
             ? county.leadCount
             : 0;
+      case UserRole.pending:
+        return 0;
     }
   }
 
@@ -490,17 +499,30 @@ class AppProvider extends ChangeNotifier {
     final state = _states.firstWhere((s) => s.code == stateCode);
     final county = state.counties.firstWhere((c) => c.name == countyName);
 
-    if (county.leadCount <= 0 &&
-        disposition != LeadStatus.undecided &&
-        !_leads.any((l) =>
-            l.countyId == county.id &&
-            l.assignedToId == associateId &&
-            l.status.countsInActivePipeline)) {
-      return 'No active leads available in this county.';
-    }
-
     final trimmedNotes =
         closingNotes?.trim().isEmpty ?? true ? null : closingNotes!.trim();
+
+    final hasActiveCountyLeads = county.leadCount > 0;
+    final hasPipelineLead = _leads.any((l) =>
+        l.countyId == county.id &&
+        l.assignedToId == associateId &&
+        l.status.countsInActivePipeline);
+
+    if (!hasActiveCountyLeads && !hasPipelineLead) {
+      if (disposition == LeadStatus.sold) {
+        return _recordColdCallSale(
+          associateId: associateId,
+          stateCode: stateCode,
+          countyName: countyName,
+          county: county,
+          saleAmount: saleAmount!,
+          closingNotes: trimmedNotes,
+        );
+      }
+      if (disposition != LeadStatus.undecided) {
+        return 'No active leads available in this county.';
+      }
+    }
 
     final lead = Lead(
       countyId: county.id,
@@ -546,6 +568,50 @@ class AppProvider extends ChangeNotifier {
       );
     } catch (_) {
       // Local state is updated even if remote sync fails.
+    }
+
+    notifyListeners();
+    return null;
+  }
+
+  Future<String?> _recordColdCallSale({
+    required String associateId,
+    required String stateCode,
+    required String countyName,
+    required County county,
+    required double saleAmount,
+    String? closingNotes,
+  }) async {
+    county.assignedTo = associateId;
+
+    _assignments.add(LeadAssignment(
+      countyId: county.id,
+      assignedById: _currentUser!.id,
+      assignedToId: associateId,
+      leadCount: 0,
+      disposition: LeadStatus.sold,
+      saleAmount: saleAmount,
+      closingNotes: closingNotes,
+    ));
+
+    try {
+      await _firestore?.saveSale(
+        associateId: associateId,
+        recordedById: _currentUser!.id,
+        countyId: county.id,
+        stateCode: stateCode,
+        countyName: countyName,
+        saleAmount: saleAmount,
+        closingNotes: closingNotes,
+      );
+      await _firestore?.upsertCountyLead(
+        stateCode: stateCode,
+        countyName: countyName,
+        leadCount: county.leadCount,
+        assignedToId: county.assignedTo,
+      );
+    } catch (_) {
+      // Local stats are updated even if remote sync fails.
     }
 
     notifyListeners();
@@ -636,17 +702,21 @@ class AppProvider extends ChangeNotifier {
         }
       }
     }
+    for (final assignment in _assignments) {
+      if (assignment.disposition != LeadStatus.sold) continue;
+      final s = stats[assignment.assignedToId];
+      if (s == null) continue;
+      s.totalSalesCount++;
+      s.totalRevenue += assignment.saleAmount ?? 0;
+    }
     for (final lead in _leads) {
       final s = stats[lead.assignedToId];
       if (s == null) continue;
       switch (lead.status) {
-        case LeadStatus.sold:
-          s.totalSalesCount++;
-          s.totalRevenue += lead.saleAmount ?? 0;
-          break;
         case LeadStatus.undecided:
           s.undecidedCount++;
           break;
+        case LeadStatus.sold:
         case LeadStatus.active:
         case LeadStatus.notInterested:
           break;

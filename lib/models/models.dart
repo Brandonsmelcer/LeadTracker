@@ -3,7 +3,7 @@ import 'package:uuid/uuid.dart';
 
 const _uuid = Uuid();
 
-enum UserRole { admin, manager, associate }
+enum UserRole { admin, manager, associate, pending }
 
 UserRole? userRoleFromFirestore(String? value) {
   switch (value?.toLowerCase()) {
@@ -13,6 +13,8 @@ UserRole? userRoleFromFirestore(String? value) {
       return UserRole.manager;
     case 'associate':
       return UserRole.associate;
+    case 'pending':
+      return UserRole.pending;
     default:
       return null;
   }

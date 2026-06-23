@@ -71,27 +71,34 @@ class _CountySvgMapState extends State<CountySvgMap> {
     return widget.provider.mapVisibleLeadCount(county);
   }
 
-  void _handleTap(Offset position) {
-    for (final shape in widget.layer.counties.reversed) {
-      if (!_matchesSearch(shape) || !_shapeInScope(shape)) continue;
-      if (shape.path.contains(position)) {
-        final county = _countyFor(shape);
-        if (county == null) return;
+  void _handleTap(Offset scenePosition) {
+    final shape = widget.layer.hitTestAt(
+      scenePosition,
+      include: (s) => _matchesSearch(s) && _shapeInScope(s),
+    );
+    if (shape == null) return;
 
-        final activeLeads = _visibleLeads(shape);
-        if (activeLeads == 0) {
-          _showColdCallPrompt(county, shape.stateCode);
-        } else {
-          CountyDetailDialog.show(
-            context,
-            county: county,
-            stateCode: shape.stateCode,
-            provider: widget.provider,
-          );
-        }
-        return;
-      }
+    final county = _countyFor(shape);
+    if (county == null) return;
+
+    final activeLeads = _visibleLeads(shape);
+    if (activeLeads == 0) {
+      _showColdCallPrompt(county, shape.stateCode);
+    } else {
+      CountyDetailDialog.show(
+        context,
+        county: county,
+        stateCode: shape.stateCode,
+        provider: widget.provider,
+      );
     }
+  }
+
+  CountyPathShape? _hitTestAt(Offset scenePosition) {
+    return widget.layer.hitTestAt(
+      scenePosition,
+      include: (s) => _matchesSearch(s) && _shapeInScope(s),
+    );
   }
 
   void _showColdCallPrompt(County county, String stateCode) {
@@ -158,31 +165,28 @@ class _CountySvgMapState extends State<CountySvgMap> {
     final mapSize = Size(widget.layer.width, widget.layer.height);
 
     return SizedBox.expand(
-      child: InteractiveViewer(
-        transformationController: _transformController,
-        constrained: true,
-        clipBehavior: Clip.none,
-        boundaryMargin: const EdgeInsets.all(500.0),
-        minScale: 0.3,
-        maxScale: 12.0,
-        panEnabled: true,
-        scaleEnabled: true,
-        trackpadScrollCausesScale: true,
-        onInteractionEnd: (_) => setState(() {}),
-        child: MouseRegion(
-          onHover: (e) {
-            CountyPathShape? hit;
-            for (final shape in widget.layer.counties.reversed) {
-              if (shape.path.contains(e.localPosition)) {
-                hit = shape;
-                break;
-              }
-            }
-            if (hit != _hovered) setState(() => _hovered = hit);
-          },
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTapUp: (d) => _handleTap(d.localPosition),
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTapUp: (details) {
+          final scenePosition = _transformController.toScene(details.localPosition);
+          _handleTap(scenePosition);
+        },
+        child: InteractiveViewer(
+          transformationController: _transformController,
+          constrained: true,
+          clipBehavior: Clip.none,
+          boundaryMargin: const EdgeInsets.all(500.0),
+          minScale: 0.3,
+          maxScale: 12.0,
+          panEnabled: true,
+          scaleEnabled: true,
+          trackpadScrollCausesScale: true,
+          onInteractionEnd: (_) => setState(() {}),
+          child: MouseRegion(
+            onHover: (e) {
+              final hit = _hitTestAt(e.localPosition);
+              if (hit != _hovered) setState(() => _hovered = hit);
+            },
             child: SizedBox(
               width: mapSize.width,
               height: mapSize.height,

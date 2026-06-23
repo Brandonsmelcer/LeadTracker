@@ -24,7 +24,7 @@ class UserProfile {
       uid: uid,
       email: data['email'] as String? ?? '',
       name: data['name'] as String? ?? 'User',
-      role: userRoleFromFirestore(data['role'] as String?) ?? UserRole.associate,
+      role: userRoleFromFirestore(data['role'] as String?) ?? UserRole.pending,
       managerId: data['managerId'] as String?,
       approved: data['approved'] as bool? ?? false,
     );
@@ -60,6 +60,9 @@ class FirestoreService {
   CollectionReference<Map<String, dynamic>>? get _leads =>
       _db?.collection('leads');
 
+  CollectionReference<Map<String, dynamic>>? get _sales =>
+      _db?.collection('sales');
+
   Future<void> saveLead(Lead lead) async {
     final leads = _leads;
     if (leads == null) return;
@@ -67,6 +70,32 @@ class FirestoreService {
       ...lead.toMap(),
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
+  }
+
+  /// Standalone cold-call / door-to-door sale (no existing lead document).
+  Future<void> saveSale({
+    required String associateId,
+    required String recordedById,
+    required String countyId,
+    required String stateCode,
+    required String countyName,
+    required double saleAmount,
+    String? closingNotes,
+  }) async {
+    final sales = _sales;
+    if (sales == null) return;
+    await sales.add({
+      'associateId': associateId,
+      'recordedById': recordedById,
+      'countyId': countyId,
+      'stateCode': stateCode,
+      'countyName': countyName,
+      'saleAmount': saleAmount,
+      'closingNotes': closingNotes,
+      'source': 'cold_call',
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   }
 
   Future<void> upsertCountyLead({
@@ -146,6 +175,15 @@ class FirestoreService {
     return profile?.uid;
   }
 
+  List<UserProfile> _profilesFromSnapshot(
+      QuerySnapshot<Map<String, dynamic>> snap) {
+    final profiles = snap.docs
+        .map((doc) => UserProfile.fromMap(doc.id, doc.data()))
+        .toList();
+    profiles.sort((a, b) => a.email.compareTo(b.email));
+    return profiles;
+  }
+
   /// Returns every document in the `users` collection (admin tooling).
   Future<List<UserProfile>> fetchAllUsers() async {
     final users = _users;
@@ -153,11 +191,16 @@ class FirestoreService {
       throw StateError('Firestore is not available.');
     }
     final snap = await users.get();
-    final profiles = snap.docs
-        .map((doc) => UserProfile.fromMap(doc.id, doc.data()))
-        .toList();
-    profiles.sort((a, b) => a.email.compareTo(b.email));
-    return profiles;
+    return _profilesFromSnapshot(snap);
+  }
+
+  /// Live stream of all user profiles for the admin management screen.
+  Stream<List<UserProfile>> watchAllUsers() {
+    final users = _users;
+    if (users == null) {
+      return Stream.error(StateError('Firestore is not available.'));
+    }
+    return users.snapshots().map(_profilesFromSnapshot);
   }
 
   /// Updates only the `role` field on an existing user profile.
@@ -166,13 +209,10 @@ class FirestoreService {
     if (users == null) {
       throw StateError('Firestore is not available.');
     }
-    await users.doc(uid).set(
-      {
-        'role': role.name,
-        'updatedAt': FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
-    );
+    await users.doc(uid).update({
+      'role': role.name,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   }
 
   /// Loads master county lead records into the local provider state.

@@ -210,6 +210,33 @@ void main() {
       expect(provider.leads.first.status, LeadStatus.notInterested);
     });
 
+    test('cold call sale with zero leads records revenue without lead doc',
+        () async {
+      provider.addUser('Agent 1', UserRole.associate);
+      final agentId = provider.associates.first.id;
+
+      final error = await provider.recordLeadOutcome(
+        associateId: agentId,
+        stateCode: 'TN',
+        countyName: 'Davidson',
+        disposition: LeadStatus.sold,
+        saleAmount: 8500,
+        closingNotes: 'Door-to-door close',
+      );
+
+      expect(error, isNull);
+      expect(provider.leads, isEmpty);
+      expect(provider.totalRevenue, 8500);
+      expect(provider.totalSalesCount, 1);
+
+      final davidson = provider.states
+          .firstWhere((s) => s.code == 'TN')
+          .counties
+          .firstWhere((c) => c.name == 'Davidson');
+      expect(davidson.leadCount, 0);
+      expect(davidson.assignedTo, agentId);
+    });
+
     test('removing user clears assignments', () {
       provider.addUser('Agent 1', UserRole.associate);
       final userId = provider.associates.first.id;
