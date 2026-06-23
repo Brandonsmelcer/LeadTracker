@@ -277,10 +277,13 @@ class _StatesScreenState extends State<StatesScreen>
       );
     }
 
-    return CountySvgMap(
-      layer: layer,
-      provider: provider,
-      searchQuery: _searchQuery,
+    return ClipRect(
+      clipBehavior: Clip.none,
+      child: CountySvgMap(
+        layer: layer,
+        provider: provider,
+        searchQuery: _searchQuery,
+      ),
     );
   }
 }

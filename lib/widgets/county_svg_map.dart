@@ -1,5 +1,6 @@
 import 'dart:ui' as ui;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import '../data/county_map_geometry.dart';
 import '../models/models.dart';
@@ -91,16 +92,38 @@ class _CountySvgMapState extends State<CountySvgMap> {
   @override
   Widget build(BuildContext context) {
     final showDetailLabels = widget.showLabels && _currentScale >= 1.2;
+    final mapSize = Size(widget.layer.width, widget.layer.height);
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final mapSize = Size(widget.layer.width, widget.layer.height);
-
-        return InteractiveViewer(
+    return SizedBox.expand(
+      child: RawGestureDetector(
+        gestures: <Type, GestureRecognizerFactory>{
+          EagerGestureRecognizer:
+              GestureRecognizerFactoryWithHandlers<EagerGestureRecognizer>(
+            () => EagerGestureRecognizer(),
+            (_) {},
+          ),
+          PanGestureRecognizer:
+              GestureRecognizerFactoryWithHandlers<PanGestureRecognizer>(
+            () => PanGestureRecognizer(),
+            (_) {},
+          ),
+          ScaleGestureRecognizer:
+              GestureRecognizerFactoryWithHandlers<ScaleGestureRecognizer>(
+            () => ScaleGestureRecognizer(),
+            (_) {},
+          ),
+        },
+        behavior: HitTestBehavior.opaque,
+        child: InteractiveViewer(
           transformationController: _transformController,
-          minScale: 0.5,
-          maxScale: 8.0,
-          boundaryMargin: const EdgeInsets.all(80),
+          constrained: false,
+          clipBehavior: Clip.none,
+          boundaryMargin: const EdgeInsets.all(double.infinity),
+          minScale: 0.3,
+          maxScale: 12.0,
+          panEnabled: true,
+          scaleEnabled: true,
+          trackpadScrollCausesScale: true,
           onInteractionEnd: (_) => setState(() {}),
           child: MouseRegion(
             onHover: (e) {
@@ -167,8 +190,8 @@ class _CountySvgMapState extends State<CountySvgMap> {
               ),
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }
@@ -265,7 +288,6 @@ class _CountyMapPainter extends CustomPainter {
       Paint()..color = AppColors.background,
     );
 
-    // State dividers for combined view.
     if (layer.stateCode == 'ALL') {
       double y = 0;
       const heights = {'TN': 206.0, 'KY': 357.0, 'WV': 719.0};

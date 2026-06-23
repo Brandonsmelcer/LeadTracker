@@ -11,6 +11,7 @@ import 'comms_screen.dart';
 import 'stats_screen.dart';
 import 'csv_import_screen.dart';
 import 'login_screen.dart';
+import 'user_management_screen.dart';
 
 class _NavItem {
   final Widget screen;
@@ -150,6 +151,21 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (teamIndex >= 0) {
                   setState(() => _currentIndex = teamIndex);
                 }
+              },
+            ),
+          if (provider.canAccessAdminPortal)
+            ListTile(
+              leading: const Icon(Icons.manage_accounts, color: AppColors.gold),
+              title: const Text('User Management',
+                  style: TextStyle(color: Colors.white)),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const UserManagementScreen(),
+                  ),
+                );
               },
             ),
           if (provider.canEditMap)

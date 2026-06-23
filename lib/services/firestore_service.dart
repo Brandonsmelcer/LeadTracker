@@ -146,6 +146,35 @@ class FirestoreService {
     return profile?.uid;
   }
 
+  /// Returns every document in the `users` collection (admin tooling).
+  Future<List<UserProfile>> fetchAllUsers() async {
+    final users = _users;
+    if (users == null) {
+      throw StateError('Firestore is not available.');
+    }
+    final snap = await users.get();
+    final profiles = snap.docs
+        .map((doc) => UserProfile.fromMap(doc.id, doc.data()))
+        .toList();
+    profiles.sort((a, b) => a.email.compareTo(b.email));
+    return profiles;
+  }
+
+  /// Updates only the `role` field on an existing user profile.
+  Future<void> updateUserRole(String uid, UserRole role) async {
+    final users = _users;
+    if (users == null) {
+      throw StateError('Firestore is not available.');
+    }
+    await users.doc(uid).set(
+      {
+        'role': role.name,
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
+  }
+
   /// Loads master county lead records into the local provider state.
   Future<void> loadCountyLeads(
     void Function(String stateCode, String countyName, int leadCount,

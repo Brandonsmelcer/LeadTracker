@@ -145,6 +145,33 @@ class AuthService extends ChangeNotifier {
     }
   }
 
+  Future<List<UserProfile>> fetchAllUsers(UserRole callerRole) async {
+    if (callerRole != UserRole.admin) {
+      throw StateError('Only administrators can manage users.');
+    }
+    final firestore = _firebaseFirestore;
+    if (!firebaseReady || firestore == null) {
+      throw StateError('Firebase is not available for user management.');
+    }
+    return firestore.fetchAllUsers();
+  }
+
+  Future<void> updateUserRole({
+    required UserRole callerRole,
+    required String uid,
+    required UserRole role,
+  }) async {
+    if (callerRole != UserRole.admin) {
+      throw StateError('Only administrators can manage users.');
+    }
+    final firestore = _firebaseFirestore;
+    if (!firebaseReady || firestore == null) {
+      throw StateError('Firebase is not available for user management.');
+    }
+    await firestore.updateUserRole(uid, role);
+    notifyListeners();
+  }
+
   Future<void> signOut() async {
     if (firebaseReady) {
       await _firebaseAuth?.signOut();
