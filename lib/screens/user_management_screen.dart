@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/models.dart';
@@ -34,12 +35,16 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
     setState(() => _updating.add(user.uid));
 
+    print('[UserManagement] updating role for ${user.email} (${user.uid}) '
+        'from ${user.role.name} to ${newRole.name}');
+
     try {
       await auth.updateUserRole(
         callerRole: app.currentUser.role,
         uid: user.uid,
         role: newRole,
       );
+      print('[UserManagement] Firestore role update succeeded for ${user.uid}');
       if (!mounted) return;
       setState(() => _updating.remove(user.uid));
       ScaffoldMessenger.of(context).showSnackBar(
@@ -48,7 +53,14 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           backgroundColor: AppColors.success,
         ),
       );
-    } catch (e) {
+    } catch (e, stack) {
+      print('[UserManagement] role update FAILED for ${user.uid} -> ${newRole.name}');
+      print('[UserManagement] error: $e');
+      if (e is FirebaseException) {
+        print('[UserManagement] FirebaseException.code: ${e.code}');
+        print('[UserManagement] FirebaseException.message: ${e.message}');
+      }
+      print('[UserManagement] stackTrace: $stack');
       if (!mounted) return;
       setState(() => _updating.remove(user.uid));
       ScaffoldMessenger.of(context).showSnackBar(
@@ -247,7 +259,19 @@ class _UserRoleTile extends StatelessWidget {
                       )
                       .toList(),
                   onChanged: (role) {
-                    if (role != null) onRoleChanged(role);
+                    if (role == null || role == user.role) return;
+                    print(
+                      '[UserManagement] dropdown onChanged: ${user.email} '
+                      '(${user.uid}) selected ${role.name}',
+                    );
+                    try {
+                      onRoleChanged(role);
+                    } catch (e, stack) {
+                      print(
+                        '[UserManagement] synchronous error in onChanged: $e',
+                      );
+                      print('[UserManagement] stackTrace: $stack');
+                    }
                   },
                 ),
               ),

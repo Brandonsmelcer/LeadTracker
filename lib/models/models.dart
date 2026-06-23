@@ -193,6 +193,9 @@ class Lead {
   LeadStatus status;
   double? saleAmount;
   String? closingNotes;
+  String? contactName;
+  String? phone;
+  String? address;
   final DateTime createdAt;
   DateTime updatedAt;
 
@@ -206,6 +209,9 @@ class Lead {
     this.status = LeadStatus.active,
     this.saleAmount,
     this.closingNotes,
+    this.contactName,
+    this.phone,
+    this.address,
     DateTime? createdAt,
     DateTime? updatedAt,
   })  : id = id ?? _uuid.v4(),
@@ -224,6 +230,9 @@ class Lead {
           LeadStatus.active,
       saleAmount: (data['saleAmount'] as num?)?.toDouble(),
       closingNotes: data['closingNotes'] as String?,
+      contactName: data['contactName'] as String?,
+      phone: data['phone'] as String?,
+      address: data['address'] as String?,
       createdAt: _timestampFromData(data['createdAt']),
       updatedAt: _timestampFromData(data['updatedAt']),
     );
@@ -238,6 +247,9 @@ class Lead {
         'status': status.firestoreValue,
         'saleAmount': saleAmount,
         'closingNotes': closingNotes,
+        'contactName': contactName,
+        'phone': phone,
+        'address': address,
         'createdAt': createdAt.toIso8601String(),
         'updatedAt': updatedAt.toIso8601String(),
       };

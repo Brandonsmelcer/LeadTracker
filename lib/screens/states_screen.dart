@@ -278,7 +278,7 @@ class _StatesScreenState extends State<StatesScreen>
     }
 
     return ClipRect(
-      clipBehavior: Clip.none,
+      clipBehavior: Clip.hardEdge,
       child: CountySvgMap(
         layer: layer,
         provider: provider,

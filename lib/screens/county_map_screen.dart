@@ -102,7 +102,7 @@ class _CountyMapScreenState extends State<CountyMapScreen> {
                                 style: TextStyle(
                                     color: AppColors.textSecondary)))
                         : ClipRect(
-                            clipBehavior: Clip.none,
+                            clipBehavior: Clip.hardEdge,
                             child: CountySvgMap(
                               layer: layer,
                               provider: provider,

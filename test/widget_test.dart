@@ -210,30 +210,30 @@ void main() {
       expect(provider.leads.first.status, LeadStatus.notInterested);
     });
 
-    test('cold call sale with zero leads records revenue without lead doc',
-        () async {
+    test('manual lead on empty county adds active lead and map pin', () async {
       provider.addUser('Agent 1', UserRole.associate);
       final agentId = provider.associates.first.id;
 
-      final error = await provider.recordLeadOutcome(
-        associateId: agentId,
+      final error = await provider.addManualLead(
         stateCode: 'TN',
         countyName: 'Davidson',
-        disposition: LeadStatus.sold,
-        saleAmount: 8500,
-        closingNotes: 'Door-to-door close',
+        contactName: 'Jane Doe',
+        phone: '615-555-0100',
+        address: '123 Main St, Nashville',
+        assignedToId: agentId,
       );
 
       expect(error, isNull);
-      expect(provider.leads, isEmpty);
-      expect(provider.totalRevenue, 8500);
-      expect(provider.totalSalesCount, 1);
+      expect(provider.leads.length, 1);
+      expect(provider.leads.first.status, LeadStatus.active);
+      expect(provider.leads.first.contactName, 'Jane Doe');
+      expect(provider.leads.first.phone, '615-555-0100');
 
       final davidson = provider.states
           .firstWhere((s) => s.code == 'TN')
           .counties
           .firstWhere((c) => c.name == 'Davidson');
-      expect(davidson.leadCount, 0);
+      expect(davidson.leadCount, 1);
       expect(davidson.assignedTo, agentId);
     });
 

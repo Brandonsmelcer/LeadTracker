@@ -479,6 +479,60 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Adds a manual lead to a county with no active pipeline (map pin drop).
+  Future<String?> addManualLead({
+    required String stateCode,
+    required String countyName,
+    required String contactName,
+    required String phone,
+    required String address,
+    String? assignedToId,
+  }) async {
+    if (!canEditMap) {
+      return 'You do not have permission to add leads.';
+    }
+    if (contactName.isEmpty || phone.isEmpty || address.isEmpty) {
+      return 'Name, phone, and address are required.';
+    }
+
+    final state = _states.firstWhere((s) => s.code == stateCode);
+    final county = state.counties.firstWhere((c) => c.name == countyName);
+    final associateId = assignedToId ?? _currentUser!.id;
+
+    final lead = Lead(
+      countyId: county.id,
+      stateCode: stateCode,
+      countyName: countyName,
+      assignedToId: associateId,
+      recordedById: _currentUser!.id,
+      status: LeadStatus.active,
+      contactName: contactName,
+      phone: phone,
+      address: address,
+    );
+
+    county.leadCount += 1;
+    county.assignedTo = associateId;
+    _leads.add(lead);
+
+    try {
+      await _firestore?.saveLead(lead);
+      await _firestore?.upsertCountyLead(
+        stateCode: stateCode,
+        countyName: countyName,
+        leadCount: county.leadCount,
+        assignedToId: county.assignedTo,
+      );
+    } catch (e) {
+      county.leadCount -= 1;
+      _leads.remove(lead);
+      return 'Failed to save lead: $e';
+    }
+
+    notifyListeners();
+    return null;
+  }
+
   /// Records a lead disposition outcome (sold, undecided, or not interested).
   Future<String?> recordLeadOutcome({
     required String associateId,

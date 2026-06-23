@@ -203,16 +203,23 @@ class FirestoreService {
     return users.snapshots().map(_profilesFromSnapshot);
   }
 
-  /// Updates only the `role` field on an existing user profile.
+  /// Updates role (and approves account) on an existing user profile.
   Future<void> updateUserRole(String uid, UserRole role) async {
     final users = _users;
     if (users == null) {
       throw StateError('Firestore is not available.');
     }
-    await users.doc(uid).update({
-      'role': role.name,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+    try {
+      await users.doc(uid).update({
+        'role': role.name,
+        'approved': true,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } on FirebaseException catch (e) {
+      print('[FirestoreService] updateUserRole failed for $uid');
+      print('[FirestoreService] code: ${e.code} message: ${e.message}');
+      rethrow;
+    }
   }
 
   /// Loads master county lead records into the local provider state.

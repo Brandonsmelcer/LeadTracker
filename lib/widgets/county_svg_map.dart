@@ -6,7 +6,7 @@ import '../models/models.dart';
 import '../providers/app_provider.dart';
 import '../theme/app_theme.dart';
 import 'county_detail_dialog.dart';
-import 'record_outcome_dialog.dart';
+import 'manual_lead_dialog.dart';
 
 Color heatColorForLeads(int leads) {
   if (leads == 0) return AppColors.countyFill;
@@ -83,7 +83,7 @@ class _CountySvgMapState extends State<CountySvgMap> {
 
     final activeLeads = _visibleLeads(shape);
     if (activeLeads == 0) {
-      _showColdCallPrompt(county, shape.stateCode);
+      _showNoLeadsPrompt(county, shape.stateCode);
     } else {
       CountyDetailDialog.show(
         context,
@@ -101,7 +101,7 @@ class _CountySvgMapState extends State<CountySvgMap> {
     );
   }
 
-  void _showColdCallPrompt(County county, String stateCode) {
+  void _showNoLeadsPrompt(County county, String stateCode) {
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: AppColors.cardDark,
@@ -122,36 +122,30 @@ class _CountySvgMapState extends State<CountySvgMap> {
               ),
             ),
             Text(
-              '$stateCode • No active leads',
+              stateCode,
               style: const TextStyle(color: AppColors.textSecondary),
             ),
             const SizedBox(height: 16),
             const Text(
-              'No active leads in this county. Would you like to log a cold-call sale?',
+              'No active leads in this county.',
               style: TextStyle(height: 1.4),
             ),
             const SizedBox(height: 24),
             FilledButton(
               onPressed: () {
                 Navigator.pop(ctx);
-                RecordOutcomeDialog.show(
+                ManualLeadDialog.show(
                   context,
                   provider: widget.provider,
-                  initialStateCode: stateCode,
-                  initialCountyName: county.name,
-                  initialDisposition: LeadStatus.sold,
+                  stateCode: stateCode,
+                  countyName: county.name,
                 );
               },
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.accent,
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
-              child: const Text('Log Cold-Call Sale'),
-            ),
-            const SizedBox(height: 8),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
+              child: const Text('Add Manual Lead'),
             ),
           ],
         ),
@@ -164,18 +158,19 @@ class _CountySvgMapState extends State<CountySvgMap> {
     final showDetailLabels = widget.showLabels && _currentScale >= 1.2;
     final mapSize = Size(widget.layer.width, widget.layer.height);
 
-    return SizedBox.expand(
+    return ClipRect(
       child: GestureDetector(
         behavior: HitTestBehavior.translucent,
         onTapUp: (details) {
-          final scenePosition = _transformController.toScene(details.localPosition);
+          final scenePosition =
+              _transformController.toScene(details.localPosition);
           _handleTap(scenePosition);
         },
         child: InteractiveViewer(
           transformationController: _transformController,
           constrained: true,
-          clipBehavior: Clip.none,
-          boundaryMargin: const EdgeInsets.all(500.0),
+          clipBehavior: Clip.hardEdge,
+          boundaryMargin: EdgeInsets.zero,
           minScale: 0.3,
           maxScale: 12.0,
           panEnabled: true,
