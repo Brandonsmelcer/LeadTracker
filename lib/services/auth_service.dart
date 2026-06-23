@@ -29,6 +29,11 @@ class AuthService extends ChangeNotifier {
     UserRole.associate: 'associate@test.com',
   };
 
+  static const inviteCodeAssociate = 'JoinAssociate2026';
+  static const inviteCodeManager = 'JoinManager2026';
+  static const invalidInviteMessage =
+      'Invalid Invite Code. Please contact your administrator.';
+
   User? get firebaseUser => _firebaseAuth?.currentUser;
   bool get isSignedIn => firebaseUser != null;
 
@@ -46,6 +51,57 @@ class AuthService extends ChangeNotifier {
       await _firebaseAuth!.signOut();
       throw Exception('User profile not found or not approved.');
     }
+    await _applyProfileToApp(app, profile);
+    notifyListeners();
+  }
+
+  UserRole? _roleFromInviteCode(String inviteCode) {
+    switch (inviteCode.trim()) {
+      case inviteCodeAssociate:
+        return UserRole.associate;
+      case inviteCodeManager:
+        return UserRole.manager;
+      default:
+        return null;
+    }
+  }
+
+  Future<void> signUpWithInviteCode({
+    required String name,
+    required String email,
+    required String password,
+    required String inviteCode,
+    required AppProvider app,
+  }) async {
+    if (!firebaseReady || _firebaseAuth == null || _firebaseFirestore == null) {
+      throw Exception('Firebase is not configured for this build.');
+    }
+
+    final role = _roleFromInviteCode(inviteCode);
+    if (role == null) {
+      throw Exception(invalidInviteMessage);
+    }
+
+    final cred = await _firebaseAuth!.createUserWithEmailAndPassword(
+      email: email.trim(),
+      password: password,
+    );
+
+    String? managerId;
+    if (role == UserRole.associate) {
+      managerId = await _firebaseFirestore!
+          .resolveManagerIdByEmail(debugEmails[UserRole.manager]!);
+    }
+
+    final profile = await _firebaseFirestore!.upsertUserProfile(
+      uid: cred.user!.uid,
+      email: email.trim(),
+      name: name.trim(),
+      role: role,
+      managerId: managerId,
+      approved: true,
+    );
+
     await _applyProfileToApp(app, profile);
     notifyListeners();
   }

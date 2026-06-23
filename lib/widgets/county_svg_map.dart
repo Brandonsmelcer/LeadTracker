@@ -6,6 +6,7 @@ import '../models/models.dart';
 import '../providers/app_provider.dart';
 import '../theme/app_theme.dart';
 import 'county_detail_dialog.dart';
+import 'record_outcome_dialog.dart';
 
 Color heatColorForLeads(int leads) {
   if (leads == 0) return AppColors.countyFill;
@@ -75,7 +76,12 @@ class _CountySvgMapState extends State<CountySvgMap> {
       if (!_matchesSearch(shape) || !_shapeInScope(shape)) continue;
       if (shape.path.contains(position)) {
         final county = _countyFor(shape);
-        if (county != null) {
+        if (county == null) return;
+
+        final activeLeads = _visibleLeads(shape);
+        if (activeLeads == 0) {
+          _showColdCallPrompt(county, shape.stateCode);
+        } else {
           CountyDetailDialog.show(
             context,
             county: county,
@@ -86,6 +92,64 @@ class _CountySvgMapState extends State<CountySvgMap> {
         return;
       }
     }
+  }
+
+  void _showColdCallPrompt(County county, String stateCode) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.cardDark,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              county.name,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              '$stateCode • No active leads',
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'No active leads in this county. Would you like to log a cold-call sale?',
+              style: TextStyle(height: 1.4),
+            ),
+            const SizedBox(height: 24),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                RecordOutcomeDialog.show(
+                  context,
+                  provider: widget.provider,
+                  initialStateCode: stateCode,
+                  initialCountyName: county.name,
+                  initialDisposition: LeadStatus.sold,
+                );
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.accent,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              child: const Text('Log Cold-Call Sale'),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
