@@ -1,6 +1,5 @@
 import 'dart:ui' as ui;
 
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import '../data/county_map_geometry.dart';
 import '../models/models.dart';
@@ -95,98 +94,78 @@ class _CountySvgMapState extends State<CountySvgMap> {
     final mapSize = Size(widget.layer.width, widget.layer.height);
 
     return SizedBox.expand(
-      child: RawGestureDetector(
-        gestures: <Type, GestureRecognizerFactory>{
-          EagerGestureRecognizer:
-              GestureRecognizerFactoryWithHandlers<EagerGestureRecognizer>(
-            () => EagerGestureRecognizer(),
-            (_) {},
-          ),
-          PanGestureRecognizer:
-              GestureRecognizerFactoryWithHandlers<PanGestureRecognizer>(
-            () => PanGestureRecognizer(),
-            (_) {},
-          ),
-          ScaleGestureRecognizer:
-              GestureRecognizerFactoryWithHandlers<ScaleGestureRecognizer>(
-            () => ScaleGestureRecognizer(),
-            (_) {},
-          ),
-        },
-        behavior: HitTestBehavior.opaque,
-        child: InteractiveViewer(
-          transformationController: _transformController,
-          constrained: false,
-          clipBehavior: Clip.none,
-          boundaryMargin: const EdgeInsets.all(double.infinity),
-          minScale: 0.3,
-          maxScale: 12.0,
-          panEnabled: true,
-          scaleEnabled: true,
-          trackpadScrollCausesScale: true,
-          onInteractionEnd: (_) => setState(() {}),
-          child: MouseRegion(
-            onHover: (e) {
-              CountyPathShape? hit;
-              for (final shape in widget.layer.counties.reversed) {
-                if (shape.path.contains(e.localPosition)) {
-                  hit = shape;
-                  break;
-                }
+      child: InteractiveViewer(
+        transformationController: _transformController,
+        constrained: true,
+        clipBehavior: Clip.none,
+        boundaryMargin: const EdgeInsets.all(500.0),
+        minScale: 0.3,
+        maxScale: 12.0,
+        panEnabled: true,
+        scaleEnabled: true,
+        trackpadScrollCausesScale: true,
+        onInteractionEnd: (_) => setState(() {}),
+        child: MouseRegion(
+          onHover: (e) {
+            CountyPathShape? hit;
+            for (final shape in widget.layer.counties.reversed) {
+              if (shape.path.contains(e.localPosition)) {
+                hit = shape;
+                break;
               }
-              if (hit != _hovered) setState(() => _hovered = hit);
-            },
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTapUp: (d) => _handleTap(d.localPosition),
-              child: SizedBox(
-                width: mapSize.width,
-                height: mapSize.height,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    CustomPaint(
-                      size: mapSize,
-                      painter: _CountyMapPainter(
-                        layer: widget.layer,
-                        provider: widget.provider,
-                        searchQuery: widget.searchQuery,
-                        hovered: _hovered,
-                        getCounty: _countyFor,
-                        matchesSearch: _matchesSearch,
-                        shapeInScope: _shapeInScope,
-                        visibleLeads: _visibleLeads,
-                      ),
+            }
+            if (hit != _hovered) setState(() => _hovered = hit);
+          },
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTapUp: (d) => _handleTap(d.localPosition),
+            child: SizedBox(
+              width: mapSize.width,
+              height: mapSize.height,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  CustomPaint(
+                    size: mapSize,
+                    painter: _CountyMapPainter(
+                      layer: widget.layer,
+                      provider: widget.provider,
+                      searchQuery: widget.searchQuery,
+                      hovered: _hovered,
+                      getCounty: _countyFor,
+                      matchesSearch: _matchesSearch,
+                      shapeInScope: _shapeInScope,
+                      visibleLeads: _visibleLeads,
                     ),
-                    if (widget.showLabels)
-                      ...widget.layer.counties
-                          .where((s) => _matchesSearch(s) && _shapeInScope(s))
-                          .map((shape) {
-                        final leads = _visibleLeads(shape);
-                        final bounds = shape.bounds;
-                        final labelWidth = bounds.width.clamp(36.0, 90.0);
-                        final showName = showDetailLabels || bounds.width > 28;
-                        final showCount = leads > 0;
+                  ),
+                  if (widget.showLabels)
+                    ...widget.layer.counties
+                        .where((s) => _matchesSearch(s) && _shapeInScope(s))
+                        .map((shape) {
+                      final leads = _visibleLeads(shape);
+                      final bounds = shape.bounds;
+                      final labelWidth = bounds.width.clamp(36.0, 90.0);
+                      final showName = showDetailLabels || bounds.width > 28;
+                      final showCount = leads > 0;
 
-                        if (!showName && !showCount) {
-                          return const SizedBox.shrink();
-                        }
+                      if (!showName && !showCount) {
+                        return const SizedBox.shrink();
+                      }
 
-                        return Positioned(
-                          left: shape.centroid.dx - labelWidth / 2,
-                          top: shape.centroid.dy - 14,
-                          width: labelWidth,
-                          child: IgnorePointer(
-                            child: _CountyLabel(
-                              name: showName ? shape.countyName : null,
-                              leadCount: showCount ? leads : null,
-                              compact: !showDetailLabels,
-                            ),
+                      return Positioned(
+                        left: shape.centroid.dx - labelWidth / 2,
+                        top: shape.centroid.dy - 14,
+                        width: labelWidth,
+                        child: IgnorePointer(
+                          child: _CountyLabel(
+                            name: showName ? shape.countyName : null,
+                            leadCount: showCount ? leads : null,
+                            compact: !showDetailLabels,
                           ),
-                        );
-                      }),
-                  ],
-                ),
+                        ),
+                      );
+                    }),
+                ],
               ),
             ),
           ),
