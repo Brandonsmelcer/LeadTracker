@@ -101,13 +101,14 @@ class _CountyMapScreenState extends State<CountyMapScreen> {
                             child: Text('Map data unavailable',
                                 style: TextStyle(
                                     color: AppColors.textSecondary)))
-                        : ClipRect(
-                            clipBehavior: Clip.hardEdge,
-                            child: CountySvgMap(
-                              layer: layer,
-                              provider: provider,
-                              searchQuery: _searchQuery,
-                            ),
+                        : LayoutBuilder(
+                            builder: (context, constraints) {
+                              return CountySvgMap(
+                                layer: layer,
+                                provider: provider,
+                                searchQuery: _searchQuery,
+                              );
+                            },
                           ),
               ),
             ],

@@ -121,58 +121,65 @@ class _StatesScreenState extends State<StatesScreen>
         _syncTabsForRole(provider);
         final modes = _modesForRole(provider);
         final layer = _layerForMode(_viewMode, provider);
+        final mapHeight = countyMapViewportHeight(context);
 
-        return Column(
-          children: [
-            _buildHeader(provider),
-            _buildScopeBanner(provider),
-            if (_tabController.length == modes.length)
-              _buildViewToggle(modes)
-            else
-              const SizedBox(height: 48),
+        return CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(child: _buildHeader(provider)),
+            SliverToBoxAdapter(child: _buildScopeBanner(provider)),
+            SliverToBoxAdapter(
+              child: _tabController.length == modes.length
+                  ? _buildViewToggle(modes)
+                  : const SizedBox(height: 48),
+            ),
             if (!provider.canEditMap)
-              const Padding(
-                padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: Chip(
-                    label: Text('View Only',
-                        style: TextStyle(fontSize: 11, color: Colors.white)),
-                    backgroundColor: AppColors.surface,
-                    visualDensity: VisualDensity.compact,
+              const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: Chip(
+                      label: Text('View Only',
+                          style: TextStyle(fontSize: 11, color: Colors.white)),
+                      backgroundColor: AppColors.surface,
+                      visualDensity: VisualDensity.compact,
+                    ),
                   ),
                 ),
               ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      decoration: InputDecoration(
-                        hintText: 'Search counties...',
-                        prefixIcon: const Icon(Icons.search,
-                            color: AppColors.textSecondary),
-                        hintStyle:
-                            const TextStyle(color: AppColors.textSecondary),
-                        contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(30)),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        decoration: InputDecoration(
+                          hintText: 'Search counties...',
+                          prefixIcon: const Icon(Icons.search,
+                              color: AppColors.textSecondary),
+                          hintStyle:
+                              const TextStyle(color: AppColors.textSecondary),
+                          contentPadding:
+                              const EdgeInsets.symmetric(vertical: 0),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(30)),
+                        ),
+                        style: const TextStyle(color: Colors.white),
+                        onChanged: (v) => setState(() => _searchQuery = v),
                       ),
-                      style: const TextStyle(color: Colors.white),
-                      onChanged: (v) => setState(() => _searchQuery = v),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    icon: Icon(_showMap ? Icons.list : Icons.map),
-                    tooltip: _showMap ? 'List View' : 'Map View',
-                    onPressed: () => setState(() => _showMap = !_showMap),
-                  ),
-                ],
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: Icon(_showMap ? Icons.list : Icons.map),
+                      tooltip: _showMap ? 'List View' : 'Map View',
+                      onPressed: () => setState(() => _showMap = !_showMap),
+                    ),
+                  ],
+                ),
               ),
             ),
-            Expanded(child: _buildBody(provider, layer)),
+            ..._buildContentSlivers(provider, layer, mapHeight),
           ],
         );
       },
@@ -255,139 +262,181 @@ class _StatesScreenState extends State<StatesScreen>
         MapViewMode.westVirginia => 'West Virginia',
       };
 
-  Widget _buildBody(AppProvider provider, CountyMapLayer? layer) {
+  List<Widget> _buildContentSlivers(
+    AppProvider provider,
+    CountyMapLayer? layer,
+    double mapHeight,
+  ) {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.accent));
+      return [
+        const SliverFillRemaining(
+          hasScrollBody: false,
+          child: Center(
+            child: CircularProgressIndicator(color: AppColors.accent),
+          ),
+        ),
+      ];
     }
     if (_loadError != null) {
-      return Center(
-        child: Text('Failed to load map: $_loadError',
-            style: const TextStyle(color: AppColors.textSecondary)),
-      );
+      return [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: Center(
+            child: Text(
+              'Failed to load map: $_loadError',
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+        ),
+      ];
     }
     if (layer == null) {
-      return const Center(child: Text('Map data unavailable'));
+      return const [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: Center(child: Text('Map data unavailable')),
+        ),
+      ];
     }
 
     if (!_showMap) {
-      return _CountyListPanel(
-        provider: provider,
-        viewMode: _viewMode,
-        searchQuery: _searchQuery,
-      );
+      return [
+        _CountyListSliver(
+          provider: provider,
+          viewMode: _viewMode,
+          searchQuery: _searchQuery,
+        ),
+      ];
     }
 
-    return ClipRect(
-      clipBehavior: Clip.hardEdge,
-      child: CountySvgMap(
-        layer: layer,
-        provider: provider,
-        searchQuery: _searchQuery,
+    return [
+      SliverToBoxAdapter(
+        child: SizedBox(
+          height: mapHeight,
+          child: CountySvgMap(
+            layer: layer,
+            provider: provider,
+            searchQuery: _searchQuery,
+          ),
+        ),
       ),
-    );
+      const SliverToBoxAdapter(child: SizedBox(height: 16)),
+    ];
   }
 }
 
-class _CountyListPanel extends StatelessWidget {
+class _CountyListSliver extends StatelessWidget {
   final AppProvider provider;
   final MapViewMode viewMode;
   final String searchQuery;
 
-  const _CountyListPanel({
+  const _CountyListSliver({
     required this.provider,
     required this.viewMode,
     required this.searchQuery,
   });
 
-  List<String> get _stateCodes {
-    final modes = switch (viewMode) {
-      MapViewMode.combined => ['TN', 'KY', 'WV'],
-      MapViewMode.tennessee => ['TN'],
-      MapViewMode.kentucky => ['KY'],
-      MapViewMode.westVirginia => ['WV'],
-    };
-    return modes;
-  }
-
   @override
   Widget build(BuildContext context) {
-    final counties = <({County county, String stateCode})>[];
-    for (final code in _stateCodes) {
-      final state = provider.states.firstWhere((s) => s.code == code);
-      for (final c in state.counties) {
-        if (!provider.isCountyVisibleOnMap(c) &&
-            provider.currentUser.role != UserRole.admin) {
-          continue;
-        }
-        if (searchQuery.isEmpty ||
-            c.name.toLowerCase().contains(searchQuery.toLowerCase())) {
-          counties.add((county: c, stateCode: code));
-        }
-      }
-    }
-    counties.sort((a, b) => provider
-        .mapVisibleLeadCount(b.county)
-        .compareTo(provider.mapVisibleLeadCount(a.county)));
+    final counties = _filteredCounties(provider, viewMode, searchQuery);
 
-    return ListView.builder(
+    return SliverPadding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: counties.length,
-      itemBuilder: (context, index) {
-        final item = counties[index];
-        final county = item.county;
-        final assignee = county.assignedTo != null
-            ? provider.users.cast<AppUser?>().firstWhere(
-                (u) => u!.id == county.assignedTo,
-                orElse: () => null)
-            : null;
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (context, index) {
+            final item = counties[index];
+            final county = item.county;
+            final assignee = county.assignedTo != null
+                ? provider.users.cast<AppUser?>().firstWhere(
+                    (u) => u!.id == county.assignedTo,
+                    orElse: () => null)
+                : null;
 
-        return Container(
-          margin: const EdgeInsets.only(bottom: 4),
-          decoration: BoxDecoration(
-            color: AppColors.cardDark,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: ListTile(
-            leading: Container(
-              width: 44,
-              height: 44,
+            return Container(
+              margin: const EdgeInsets.only(bottom: 4),
               decoration: BoxDecoration(
-                color: county.leadCount > 0
-                    ? AppColors.accent.withAlpha(40)
-                    : AppColors.surface,
+                color: AppColors.cardDark,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Center(
-                child: Text(
-                  '${provider.mapVisibleLeadCount(county)}',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
+              child: ListTile(
+                leading: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
                     color: county.leadCount > 0
-                        ? AppColors.accent
-                        : AppColors.textSecondary,
+                        ? AppColors.accent.withAlpha(40)
+                        : AppColors.surface,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Center(
+                    child: Text(
+                      '${provider.mapVisibleLeadCount(county)}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: county.leadCount > 0
+                            ? AppColors.accent
+                            : AppColors.textSecondary,
+                      ),
+                    ),
                   ),
                 ),
+                title: Text(county.name),
+                subtitle: Text(
+                  '${item.stateCode}${assignee != null ? ' • ${assignee.name}' : ''}',
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                  ),
+                ),
+                trailing: const Icon(Icons.chevron_right,
+                    color: AppColors.textSecondary),
+                onTap: () {
+                  CountyDetailDialog.show(
+                    context,
+                    county: county,
+                    stateCode: item.stateCode,
+                    provider: provider,
+                  );
+                },
               ),
-            ),
-            title: Text(county.name),
-            subtitle: Text(
-              '${item.stateCode}${assignee != null ? ' • ${assignee.name}' : ''}',
-              style: const TextStyle(
-                  color: AppColors.textSecondary, fontSize: 12),
-            ),
-            trailing: const Icon(Icons.chevron_right,
-                color: AppColors.textSecondary),
-            onTap: () {
-              CountyDetailDialog.show(
-                context,
-                county: county,
-                stateCode: item.stateCode,
-                provider: provider,
-              );
-            },
-          ),
-        );
-      },
+            );
+          },
+          childCount: counties.length,
+        ),
+      ),
     );
   }
+}
+
+List<({County county, String stateCode})> _filteredCounties(
+  AppProvider provider,
+  MapViewMode viewMode,
+  String searchQuery,
+) {
+  final stateCodes = switch (viewMode) {
+    MapViewMode.combined => ['TN', 'KY', 'WV'],
+    MapViewMode.tennessee => ['TN'],
+    MapViewMode.kentucky => ['KY'],
+    MapViewMode.westVirginia => ['WV'],
+  };
+
+  final counties = <({County county, String stateCode})>[];
+  for (final code in stateCodes) {
+    final state = provider.states.firstWhere((s) => s.code == code);
+    for (final c in state.counties) {
+      if (!provider.isCountyVisibleOnMap(c) &&
+          provider.currentUser.role != UserRole.admin) {
+        continue;
+      }
+      if (searchQuery.isEmpty ||
+          c.name.toLowerCase().contains(searchQuery.toLowerCase())) {
+        counties.add((county: c, stateCode: code));
+      }
+    }
+  }
+  counties.sort((a, b) => provider
+      .mapVisibleLeadCount(b.county)
+      .compareTo(provider.mapVisibleLeadCount(a.county)));
+  return counties;
 }
